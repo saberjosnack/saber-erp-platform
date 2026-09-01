@@ -1129,7 +1129,8 @@
     const origFrom = db.from.bind(db);
     db.from = function(table){
       const qb = origFrom(table);
-      if(!TENANT || !TENANT_SCOPED_TABLES.has(table)) return qb;
+      const isSettings = table==='settings';
+      if(!TENANT || !(TENANT_SCOPED_TABLES.has(table) || isSettings)) return qb;
       const tid = TENANT.id;
       const origSelect = qb.select.bind(qb);
       const origInsert = qb.insert.bind(qb);
@@ -1143,8 +1144,11 @@
       };
       qb.update = function(...args){ return origUpdate(...args).eq('tenant_id', tid); };
       qb.upsert = function(records, opts){
+        // 🔧 جدول settings مفتاحه المركّب (tenant_id + key) مش عمود id عادي — لازم نحدد onConflict
+        // صراحة، وإلا Supabase بيحاول يستخدم مفتاح قديم مش موجود وبيفشل الحفظ.
         const stamped = Array.isArray(records) ? records.map(r=>({...r, tenant_id: tid})) : {...records, tenant_id: tid};
-        return origUpsert(stamped, opts);
+        const finalOpts = isSettings ? { onConflict: 'tenant_id,key', ...(opts||{}) } : opts;
+        return origUpsert(stamped, finalOpts);
       };
       qb.delete = function(...args){ return origDelete(...args).eq('tenant_id', tid); };
       return qb;
@@ -2019,7 +2023,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-07';
+  const APP_VERSION = '2026-09-01-08';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
