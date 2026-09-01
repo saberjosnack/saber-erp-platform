@@ -311,8 +311,10 @@
 <div id="platformAdminScreen" class="hidden" style="position:fixed;inset:0;z-index:9999;background:var(--cream,#FFF8EE);overflow:auto;padding:20px">
   <div id="paLoginBox" style="max-width:340px;margin:80px auto;text-align:center">
     <div style="font-weight:900;font-size:1.6rem;color:var(--maroon,#4a1010);margin-bottom:6px">Saber<span style="color:var(--red,#F60100)">ERP</span></div>
-    <div style="font-weight:700;color:#8B7A6B;margin-bottom:20px">لوحة المنصة — رمز دخول المالكة</div>
-    <input id="paPinInput" type="password" inputmode="numeric" maxlength="8" placeholder="•••••••• (8 أرقام)" onkeydown="if(event.key==='Enter')platformAdminLogin()"
+    <div style="font-weight:700;color:#8B7A6B;margin-bottom:20px">لوحة المنصة — دخول</div>
+    <input id="paUserInput" type="text" placeholder="اسم المستخدم (فاضي = مالكة)" onkeydown="if(event.key==='Enter')document.getElementById('paPinInput').focus()"
+      style="width:100%;text-align:center;font-size:1rem;font-weight:800;padding:12px;border:2px solid #ccc;border-radius:12px;margin-bottom:10px">
+    <input id="paPinInput" type="password" inputmode="numeric" maxlength="8" placeholder="الرمز السري" onkeydown="if(event.key==='Enter')platformAdminLogin()"
       style="width:100%;text-align:center;letter-spacing:8px;font-size:1.4rem;font-weight:900;padding:16px;border:2px solid var(--maroon,#4a1010);border-radius:14px;margin-bottom:14px">
     <button onclick="platformAdminLogin()" style="width:100%;background:var(--maroon,#4a1010);color:#fff;padding:14px;border-radius:12px;font-weight:900;font-size:1.05rem">دخول</button>
     <div id="paLoginErr" style="color:var(--red,#F60100);font-weight:800;margin-top:10px;min-height:20px"></div>
@@ -323,6 +325,7 @@
       <div style="display:flex;gap:8px">
         <button id="paNavTenants" onclick="paShowTab('tenants')" style="background:var(--maroon,#4a1010);color:#fff;padding:9px 16px;border-radius:10px;font-weight:900">🏪 المطاعم</button>
         <button id="paNavFinance" onclick="paShowTab('finance')" style="background:#eee;padding:9px 16px;border-radius:10px;font-weight:900">💰 أرباحي ومصاريفي</button>
+        <button id="paNavTeam" onclick="paShowTab('team')" style="background:#eee;padding:9px 16px;border-radius:10px;font-weight:900">👥 الفريق الإداري</button>
       </div>
     </div>
     <div id="paTabTenants">
@@ -332,6 +335,7 @@
       <div id="paTenantsList"></div>
     </div>
     <div id="paTabFinance" class="hidden"></div>
+    <div id="paTabTeam" class="hidden"></div>
   </div>
 </div>
 
@@ -783,6 +787,21 @@
         brandEl.textContent = data.name;
       }
     }
+    // 🔑 دخول سريع للمالكة من لوحة المنصة (زر "ادخل") — بدون ما تحتاج تشوف رقم المطعم السري.
+    // الرابط بيجيلها فيه رمزها الشخصي (paEnter) يلي أدخلته أصلًا بلوحة المنصة، فمنتحقق منه من
+    // نفس السيرفر (Edge Function)، ولو صح منسجّلها فورًا كـ"دعم Saber ERP" بصلاحيات كاملة بهاد
+    // المطعم تحديدًا بس — بدون لمس أو معرفة حساب صاحب المطعم الحقيقي إطلاقًا.
+    const paEnter = new URLSearchParams(location.search).get('paEnter');
+    if(paEnter){
+      try{
+        const { data: authData } = await db.functions.invoke('platform-auth', { body: { pin: paEnter } });
+        if(authData && authData.ok){
+          window.__PA_IMPERSONATING = true;
+          ME = { id:'platform-support', full_name:'🔑 دعم Saber ERP', role:'admin', tenant_id:TENANT.id, is_active:true, permissions:null };
+          sessionStorage.setItem('sjs_me', JSON.stringify(ME));
+        }
+      }catch(e){ console.error('paEnter verify failed:', e); }
+    }
     return data;
   }
   // ================= 🏢 لوحة المنصة (مالكة Saber ERP) =================
@@ -803,21 +822,57 @@
   function paShowTab(tab){
     document.getElementById('paTabTenants')?.classList.toggle('hidden', tab!=='tenants');
     document.getElementById('paTabFinance')?.classList.toggle('hidden', tab!=='finance');
-    const navT = document.getElementById('paNavTenants'), navF = document.getElementById('paNavFinance');
-    if(navT) navT.style.background = tab==='tenants' ? 'var(--maroon,#4a1010)' : '#eee';
-    if(navT) navT.style.color = tab==='tenants' ? '#fff' : '#000';
-    if(navF) navF.style.background = tab==='finance' ? 'var(--maroon,#4a1010)' : '#eee';
-    if(navF) navF.style.color = tab==='finance' ? '#fff' : '#000';
+    document.getElementById('paTabTeam')?.classList.toggle('hidden', tab!=='team');
+    ['paNavTenants','paNavFinance','paNavTeam'].forEach(id=>{
+      const el = document.getElementById(id);
+      const active = (id==='paNavTenants'&&tab==='tenants')||(id==='paNavFinance'&&tab==='finance')||(id==='paNavTeam'&&tab==='team');
+      if(el){ el.style.background = active ? 'var(--maroon,#4a1010)' : '#eee'; el.style.color = active ? '#fff' : '#000'; }
+    });
     if(tab==='finance') paLoadFinance();
+    if(tab==='team') paLoadTeam();
   }
-  function platformAdminLogin(){
+  let PA_SESSION_PIN = null; // 🔑 نخزّنه بالذاكرة بس (مش localStorage) — يُستخدم بزر "ادخل" لأي مطعم بدون ما تشوفي رقمه
+  let PA_SESSION = null; // بيانات عضو الفريق الحالي (لو دخلت بيوزر لا بالرمز الرئيسي)
+  async function platformAdminLogin(){
+    const username = document.getElementById('paUserInput')?.value.trim();
     const val = document.getElementById('paPinInput')?.value.trim();
     const err = document.getElementById('paLoginErr');
-    if(val !== PLATFORM_ADMIN_PIN){ if(err) err.textContent = '⛔ رمز غلط'; return; }
-    if(err) err.textContent = '';
-    document.getElementById('paLoginBox')?.classList.add('hidden');
-    document.getElementById('paDashboard')?.classList.remove('hidden');
-    paLoadTenants();
+    if(!val){ if(err) err.textContent = '⚠️ اكتبي الرمز'; return; }
+    if(err) err.textContent = '⏳ ...جاري التحقق';
+    // 1) لو ما في يوزر مكتوب: هاد دخول المالكة الرئيسي — بيتفحص من طرف السيرفر (Edge Function)
+    //    عشان رمزها الحقيقي ما يضل ظاهر بالكود إطلاقًا (لا حد له، صلاحياته كاملة دايمًا)
+    if(!username){
+      try{
+        const { data, error } = await db.functions.invoke('platform-auth', { body: { pin: val } });
+        if(error || !data || !data.ok){ if(err) err.textContent = '⛔ رمز غلط'; return; }
+        PA_SESSION_PIN = val;
+        PA_SESSION = { username:'المالكة', full_name:'المالكة', permissions:{ all:true } };
+        if(err) err.textContent = '';
+        document.getElementById('paLoginBox')?.classList.add('hidden');
+        document.getElementById('paDashboard')?.classList.remove('hidden');
+        paApplyPermVisibility();
+        paLoadTenants();
+      }catch(e){ if(err) err.textContent = '⛔ فشل التحقق: '+e.message; }
+      return;
+    }
+    // 2) في يوزر مكتوب: هاد عضو فريق إداري — بيتفحص من جدول platform_admins مباشرة
+    try{
+      const { data, error } = await db.from('platform_admins').select('*').eq('username', username).eq('pin', val).eq('is_active', true).maybeSingle();
+      if(error || !data){ if(err) err.textContent = '⛔ اسم مستخدم أو رمز غلط'; return; }
+      PA_SESSION_PIN = null; // أعضاء الفريق ما يقدروا يستخدموا زر "ادخل لأي مطعم" إلا لو معهم صلاحية enter_tenants صراحة
+      PA_SESSION = data;
+      if(err) err.textContent = '';
+      document.getElementById('paLoginBox')?.classList.add('hidden');
+      document.getElementById('paDashboard')?.classList.remove('hidden');
+      paApplyPermVisibility();
+      paLoadTenants();
+    }catch(e){ if(err) err.textContent = '⛔ فشل التحقق: '+e.message; }
+  }
+  // 🔒 نطبّق صلاحيات عضو الفريق الحالي على واجهة اللوحة — المالكة تشوف كل شي دايمًا
+  function paApplyPermVisibility(){
+    const isOwner = !!(PA_SESSION && PA_SESSION.permissions && PA_SESSION.permissions.all);
+    document.getElementById('paNavFinance')?.classList.toggle('hidden', !isOwner && !(PA_SESSION?.permissions?.view_finance));
+    document.getElementById('paNavTeam')?.classList.toggle('hidden', !isOwner);
   }
   const BILLING_LABELS = {
     per_order: { label:'💳 بالطلب', color:'#0d6efd' },
@@ -889,6 +944,7 @@
                 🧩 ${allOn?'كل الميزات ('+featTotal+')':featCount+' / '+featTotal+' ميزة'} &nbsp;·&nbsp; 🏪${t.max_branches??'∞'} فرع &nbsp;·&nbsp; 👥${t.max_staff??'∞'} موظف
               </div>
               <div style="display:flex;flex-wrap:wrap;gap:6px">
+                ${PA_SESSION_PIN?`<button onclick="paEnterTenant('${esc2(t.code||'')}')" style="flex:1;background:var(--maroon,#4a1010);color:#fff;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">🔑 ادخل</button>`:''}
                 <button onclick="paTenantForm('${t.id}')" style="flex:1;background:#e8d9a0;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">✏️ تعديل</button>
                 <button onclick="paAddCredits('${t.id}')" style="flex:1;background:#c8e6c9;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">＋ رصيد</button>
                 <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="flex:1;background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">${t.is_active===false?'▶️ تفعيل':'⏸️ إيقاف'}</button>
@@ -898,6 +954,29 @@
         }).join('') || '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8B7A6B;font-size:1.05rem;background:#fff;border-radius:16px">ما في مطاعم مضافة بعد</div>'}
       </div>`;
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
+  }
+  function paEnterTenant(code){
+    if(!code || !PA_SESSION_PIN){ alert('⚠️ ما فيه كود مطعم أو جلسة مش صالحة'); return; }
+    const url = location.origin+location.pathname+'?r='+encodeURIComponent(code)+'&paEnter='+encodeURIComponent(PA_SESSION_PIN);
+    window.open(url, '_blank');
+  }
+  async function paUploadLogo(input){
+    const file = input.files?.[0];
+    if(!file) return;
+    const status = document.getElementById('pa_logoUploadStatus');
+    if(status) status.textContent = '⏳ جاري الرفع...';
+    try{
+      const path = 'logos/' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9._-]/g,'');
+      const { error } = await db.storage.from('tenant-logos').upload(path, file, { upsert:true });
+      if(error){ if(status) status.textContent = '✗ '+error.message; return; }
+      const { data: pub } = db.storage.from('tenant-logos').getPublicUrl(path);
+      const url = pub?.publicUrl;
+      const logoInput = document.getElementById('pa_logo');
+      const preview = document.getElementById('pa_logo_preview');
+      if(logoInput) logoInput.value = url;
+      if(preview){ preview.src = url; preview.style.display = 'block'; }
+      if(status) status.textContent = '✓ اترفعت';
+    }catch(e){ if(status) status.textContent = '✗ '+e.message; }
   }
   function paTenantForm(id){
     const t = id ? (window.__PA_TENANTS||[]).find(x=>x.id===id) : null;
@@ -909,8 +988,10 @@
       <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
         <img id="pa_logo_preview" src="${t&&t.logo_url?esc2(t.logo_url):''}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:1.5px solid #ccc;${t&&t.logo_url?'':'display:none'}">
         <div style="flex:1">
-          <label style="font-weight:700;display:block;margin-bottom:4px">🖼️ رابط شعار المطعم (لصق رابط صورة)</label>
-          <input id="pa_logo" value="${t?(t.logo_url||'').replace(/"/g,'&quot;'):''}" placeholder="https://..." dir="ltr" oninput="const p=document.getElementById('pa_logo_preview');p.src=this.value;p.style.display=this.value?'block':'none'" style="width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px">
+          <label style="font-weight:700;display:block;margin-bottom:4px">🖼️ شعار المطعم</label>
+          <input id="pa_logo" value="${t?(t.logo_url||'').replace(/"/g,'&quot;'):''}" placeholder="https://... (أو ارفعي صورة تحت)" dir="ltr" oninput="const p=document.getElementById('pa_logo_preview');p.src=this.value;p.style.display=this.value?'block':'none'" style="width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px;margin-bottom:8px">
+          <input type="file" id="pa_logoFile" accept="image/*" onchange="paUploadLogo(this)" style="font-size:.85rem">
+          <span id="pa_logoUploadStatus" style="font-size:.8rem;color:#8B7A6B;margin-right:8px"></span>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px">
@@ -1179,15 +1260,93 @@
       paLoadFinance();
     }catch(e){ alert('✗ '+e.message); }
   }
+  // ================= 👥 الفريق الإداري (أعضاء عندهم دخول للوحة المنصة بصلاحيات محدودة) =================
+  async function paLoadTeam(){
+    const box = document.getElementById('paTabTeam');
+    if(box) box.innerHTML = '<div style="text-align:center;padding:20px;color:#8B7A6B">⏳ جاري التحميل...</div>';
+    try{
+      const { data, error } = await db.from('platform_admins').select('*').order('created_at',{ascending:false});
+      if(error){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+error.message+'</div>'; return; }
+      window.__PA_TEAM = data||[];
+      if(box) box.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <button onclick="paTeamForm()" style="background:var(--ok,#2e7d32);color:#fff;padding:10px 18px;border-radius:10px;font-weight:900">＋ إضافة عضو جديد</button>
+        </div>
+        <div id="paTeamFormBox"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
+          ${(data||[]).map(m=>`<div style="background:#fff;border-radius:14px;padding:16px;box-shadow:0 4px 16px rgba(0,0,0,.06)">
+            <div style="font-weight:900;color:var(--maroon,#4a1010);font-size:1.05rem">${esc2(m.full_name||m.username)}</div>
+            <div style="font-family:monospace;color:#8B7A6B;font-size:.82rem;margin-bottom:8px" dir="ltr">${esc2(m.username)}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+              ${m.permissions?.manage_tenants?'<span style="background:#e0f0ff;color:#0d6efd;font-weight:800;font-size:.75rem;padding:4px 10px;border-radius:20px">🏪 إدارة المطاعم</span>':''}
+              ${m.permissions?.view_finance?'<span style="background:#eafbea;color:#2e7d32;font-weight:800;font-size:.75rem;padding:4px 10px;border-radius:20px">💰 يشوف الأرباح</span>':''}
+              ${!m.is_active?'<span style="background:#ffe0e0;color:#c0392b;font-weight:800;font-size:.75rem;padding:4px 10px;border-radius:20px">⛔ موقّف</span>':''}
+            </div>
+            <div style="display:flex;gap:6px">
+              <button onclick="paToggleTeamActive('${m.id}',${m.is_active===false})" style="flex:1;background:${m.is_active===false?'#c8e6c9':'#ffcdd2'};padding:7px;border-radius:8px;font-weight:800;font-size:.82rem">${m.is_active===false?'تفعيل':'إيقاف'}</button>
+              <button onclick="paDeleteTeam('${m.id}')" style="flex:1;background:#eee;padding:7px;border-radius:8px;font-weight:800;font-size:.82rem">حذف</button>
+            </div>
+          </div>`).join('') || '<div style="grid-column:1/-1;padding:30px;text-align:center;color:#8B7A6B;background:#fff;border-radius:14px">ما في أعضاء فريق مضافين بعد</div>'}
+        </div>`;
+    }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
+  }
+  function paTeamForm(){
+    const box = document.getElementById('paTeamFormBox');
+    if(!box) return;
+    box.innerHTML = `<div style="background:#fff;border:1.5px solid #eee;border-radius:14px;padding:18px;margin-bottom:16px;max-width:420px">
+      <div style="font-weight:900;margin-bottom:12px;color:var(--maroon,#4a1010)">عضو فريق جديد</div>
+      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">الاسم الكامل</label>
+        <input id="pt_name" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
+      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">اسم المستخدم (إنجليزي)</label>
+        <input id="pt_username" dir="ltr" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
+      <div style="margin-bottom:14px"><label style="font-weight:700;display:block;margin-bottom:4px">رمز سري (أرقام)</label>
+        <input id="pt_pin" type="text" inputmode="numeric" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
+      <div style="margin-bottom:14px">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:6px"><input type="checkbox" id="pt_manageTenants"> 🏪 يقدر يضيف/يعدّل مطاعم</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:700"><input type="checkbox" id="pt_viewFinance"> 💰 يشوف شاشة الأرباح والمصاريف</label>
+      </div>
+      <button onclick="paSaveTeam()" style="background:var(--maroon,#4a1010);color:#fff;padding:9px 18px;border-radius:8px;font-weight:900">حفظ</button>
+      <button onclick="document.getElementById('paTeamFormBox').innerHTML=''" style="background:#eee;padding:9px 18px;border-radius:8px;font-weight:900">إلغاء</button>
+    </div>`;
+  }
+  async function paSaveTeam(){
+    const full_name = document.getElementById('pt_name')?.value.trim();
+    const username = document.getElementById('pt_username')?.value.trim().toLowerCase();
+    const pin = document.getElementById('pt_pin')?.value.trim();
+    const permissions = {
+      manage_tenants: document.getElementById('pt_manageTenants')?.checked||false,
+      view_finance: document.getElementById('pt_viewFinance')?.checked||false,
+    };
+    if(!full_name || !username || !pin){ alert('⚠️ عبّي كل الحقول'); return; }
+    try{
+      const { error } = await db.from('platform_admins').insert({ full_name, username, pin, permissions, is_active:true });
+      if(error){ alert('✗ '+error.message); return; }
+      paLoadTeam();
+    }catch(e){ alert('✗ '+e.message); }
+  }
+  async function paToggleTeamActive(id, makeActive){
+    try{
+      const { error } = await db.from('platform_admins').update({ is_active: makeActive }).eq('id', id);
+      if(error){ alert('✗ '+error.message); return; }
+      paLoadTeam();
+    }catch(e){ alert('✗ '+e.message); }
+  }
+  async function paDeleteTeam(id){
+    if(!confirm('حذف هالعضو نهائيًا؟')) return;
+    try{
+      const { error } = await db.from('platform_admins').delete().eq('id', id);
+      if(error){ alert('✗ '+error.message); return; }
+      paLoadTeam();
+    }catch(e){ alert('✗ '+e.message); }
+  }
 
 
   // لو نجح، بيسمح لباقي كود التطبيق (تحت) يشيلها بالوقت العادي؛ لو فشل، بتضل واقفة عالرسالة للأبد.
   // 🏢 استثناء: لو الرابط فيه ?admin=1، هاد مش طلب مطعم — هاي بوابة المنصة الخاصة فيكِ إنتي بس
   // (Saber ERP)، وما إلها علاقة بأي مطعم معيّن، فمنتجاوز فحص المطعم بالكامل ومنفتح لوحة تانية.
   const IS_PLATFORM_ADMIN_MODE = new URLSearchParams(location.search).get('admin') === '1';
-  // 🔒 رمز دخول المنصة — 8 أرقام (أقوى بكثير من الـ4 أرقام العادية لموظفي أي مطعم). غيّريه لرقم
-  // من عندك قبل ما تنشري الرابط لأي حدا، وخليه رقم ما حدا يقدر يخمّنه (مش تاريخ ميلاد أو 12345678).
-  const PLATFORM_ADMIN_PIN = "12319375";
+  // 🔒 رمز دخول المالكة صار محفوظ فقط بالسيرفر (Supabase Edge Function "platform-auth")،
+  // مش مكتوب هون إطلاقًا — عشان محدا يقدر يشوفه بـ"View Source" زي ما كان قبل.
   const TENANT_GATE = IS_PLATFORM_ADMIN_MODE
     ? Promise.resolve().then(()=>{
         document.getElementById('loadingOverlay')?.remove();
@@ -2124,7 +2283,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-10';
+  const APP_VERSION = '2026-09-01-11';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2392,7 +2551,10 @@
   // 🔒 بس هلق: ما بنشيلها إلا بعد ما نتأكد إنه رابط المطعم صحيح ومفعّل — TENANT_GATE (فوق) هي يلي
   // بتقرر: لو فشلت، شاشة التحميل بتضل واقفة عالرسالة (مانع فعلي، مش بس تأخير) وما منكمل هالسطر.
   TENANT_GATE.then(()=>{
-    setTimeout(()=>{ document.getElementById('loadingOverlay')?.remove(); }, 400);
+    setTimeout(()=>{
+      document.getElementById('loadingOverlay')?.remove();
+      if(window.__PA_IMPERSONATING && ME){ enterApp(); }
+    }, 400);
   });
 
   /* ================= إعدادات الطابعة (محلية لهاد الجهاز فقط — مو مشتركة) ================= */
