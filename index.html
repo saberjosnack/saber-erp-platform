@@ -317,7 +317,7 @@
     <button onclick="platformAdminLogin()" style="width:100%;background:var(--maroon,#4a1010);color:#fff;padding:14px;border-radius:12px;font-weight:900;font-size:1.05rem">دخول</button>
     <div id="paLoginErr" style="color:var(--red,#F60100);font-weight:800;margin-top:10px;min-height:20px"></div>
   </div>
-  <div id="paDashboard" class="hidden" style="max-width:900px;margin:0 auto">
+  <div id="paDashboard" class="hidden" style="max-width:1400px;margin:0 auto;padding:0 10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:900;font-size:1.3rem;color:var(--maroon,#4a1010)">🏢 لوحة المنصة — إدارة المطاعم</div>
       <button onclick="paTenantForm()" style="background:var(--ok,#2e7d32);color:#fff;padding:10px 18px;border-radius:10px;font-weight:900">＋ إضافة مطعم جديد</button>
@@ -768,6 +768,20 @@
     return data;
   }
   // ================= 🏢 لوحة المنصة (مالكة Saber ERP) =================
+  // 📋 قائمة كل شاشات النظام (46) — نفس المفاتيح المستخدمة فعليًا بـ canAccessAdminTab، مقسّمة
+  // لفئات لعرضها بشكل مريح بلوحة المنصة. أي مفتاح هون هو بالضبط يلي بيتفحص بـ TENANT.enabled_features.
+  const PLATFORM_FEATURE_GROUPS = [
+    { g:'المبيعات والكاشير', keys:[['items','🍔 الأصناف'],['reports','📊 التقارير'],['cats','📂 التصنيفات'],['codes','🎟️ أكواد الخصم'],['schedDisc','🏷️ خصومات مجدولة'],['ordersScreen','📋 الطلبيات']] },
+    { g:'المخزون والوصفات', keys:[['inventory','📋 جرد المخزون'],['warehouse','🏬 المستودع'],['dailyAudits','📋 جرد الفرع اليومي'],['spotCheck','🎯 جرد عشوائي (فجائي)'],['ingredients','🥩 المكونات'],['recipes','📋 الوصفات'],['manufacturing','🏭 التصنيع'],['transfers','🔄 نقل بضاعة'],['waste','🗑️ الإتلاف'],['productTimeline','📜 خط سير المنتج']] },
+    { g:'المشتريات والموردين', keys:[['purchases','🛒 المشتريات'],['suppliers','🚚 الموردين'],['supplierPayments','💳 دفعات الموردين'],['expenses','💸 المصاريف']] },
+    { g:'الموظفين والموارد البشرية', keys:[['staff','👥 الموظفين'],['roles','🛡️ الأدوار'],['dailyTasks','📝 مهام يومية'],['hr','🧑‍💼 HR'],['hrLocations','📍 مواقع الدخول'],['geoExcursions','🚨 خروج من النطاق'],['dutyHours','⏰ ساعات الدوام'],['shiftSchedule','🕐 جدول الدوام المحدد'],['hrClosures','📜 كشوفات الأشهر'],['breaksScreen','☕ البريكات'],['violations','🚩 المخالفات'],['deductions','➖ جدول الخصومات'],['rewards','🎁 جدول المكافآت'],['empmeals','🍽️ وجبات الموظفين']] },
+    { g:'الفروع والأجهزة', keys:[['branches','🏪 الفروع'],['devices','🖥️ الأجهزة'],['shifts','🔄 شيفتات']] },
+    { g:'العملاء', keys:[['topcust','🏆 أفضل العملاء'],['satisfaction','⭐ نقاط رضا العملاء'],['complaints','😠 شكاوي العملاء']] },
+    { g:'الكول سنتر والمنصات', keys:[['platforms','🛵 منصات التوصيل'],['ccPoints','📞 نقاط الكول سنتر']] },
+    { g:'المالية والتحكم', keys:[['treasury','💰 المصاري'],['activityLog','📜 سجل الأحداث'],['sett','🔧 إعدادات'],['chats','💬 المحادثات']] },
+  ];
+  const ALL_FEATURE_KEYS = PLATFORM_FEATURE_GROUPS.flatMap(g=>g.keys.map(k=>k[0]));
+
   function platformAdminLogin(){
     const val = document.getElementById('paPinInput')?.value.trim();
     const err = document.getElementById('paLoginErr');
@@ -785,41 +799,72 @@
       if(error){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+error.message+'</div>'; return; }
       window.__PA_TENANTS = data||[];
       const today = new Date().toISOString().split('T')[0];
-      if(box) box.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden">
-        <tr style="background:var(--maroon,#4a1010);color:#fff"><th style="padding:10px">الاسم</th><th style="padding:10px">الكود</th><th style="padding:10px">الحالة</th><th style="padding:10px">انتهاء الاشتراك</th><th style="padding:10px">رصيد الطلبات</th><th style="padding:10px"></th></tr>
+      if(box) box.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08)">
+        <tr style="background:var(--maroon,#4a1010);color:#fff;font-size:1.02rem"><th style="padding:14px">الاسم</th><th style="padding:14px">الكود</th><th style="padding:14px">الحالة</th><th style="padding:14px">انتهاء الاشتراك</th><th style="padding:14px">رصيد الطلبات</th><th style="padding:14px">الميزات المفعّلة</th><th style="padding:14px">حدود</th><th style="padding:14px"></th></tr>
         ${(data||[]).map(t=>{
           const expired = t.subscription_expiry && t.subscription_expiry < today;
-          return `<tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px;font-weight:800">${(t.name||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:10px;font-family:monospace" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:10px">${t.is_active===false?'⛔ موقّف':(expired?'⏰ منتهي':'✅ فعّال')}</td>
-            <td style="padding:10px">${t.subscription_expiry||'—'}</td>
-            <td style="padding:10px;font-weight:800">${parseFloat(t.order_credits_balance||0).toFixed(0)}</td>
-            <td style="padding:10px;white-space:nowrap">
-              <button onclick="paTenantForm('${t.id}')" style="background:#e8d9a0;padding:6px 12px;border-radius:8px;font-weight:800;margin-left:4px">تعديل</button>
-              <button onclick="paAddCredits('${t.id}')" style="background:#c8e6c9;padding:6px 12px;border-radius:8px;font-weight:800;margin-left:4px">＋ رصيد</button>
-              <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:6px 12px;border-radius:8px;font-weight:800">${t.is_active===false?'تفعيل':'إيقاف'}</button>
+          const featCount = Array.isArray(t.enabled_features) ? t.enabled_features.length : ALL_FEATURE_KEYS.length;
+          const featTotal = ALL_FEATURE_KEYS.length;
+          const allOn = !Array.isArray(t.enabled_features);
+          return `<tr style="border-bottom:1px solid #eee;font-size:.95rem">
+            <td style="padding:14px;font-weight:800">${(t.name||'').replace(/</g,'&lt;')}</td>
+            <td style="padding:14px;font-family:monospace" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</td>
+            <td style="padding:14px">${t.is_active===false?'⛔ موقّف':(expired?'⏰ منتهي':'✅ فعّال')}</td>
+            <td style="padding:14px">${t.subscription_expiry||'—'}</td>
+            <td style="padding:14px;font-weight:800">${parseFloat(t.order_credits_balance||0).toFixed(0)}</td>
+            <td style="padding:14px">${allOn?'🟢 الكل ('+featTotal+')':featCount+' / '+featTotal}</td>
+            <td style="padding:14px;font-size:.85rem;color:#8B7A6B">🏪${t.max_branches??'∞'} · 👥${t.max_staff??'∞'}</td>
+            <td style="padding:14px;white-space:nowrap">
+              <button onclick="paTenantForm('${t.id}')" style="background:#e8d9a0;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">تعديل</button>
+              <button onclick="paAddCredits('${t.id}')" style="background:#c8e6c9;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">＋ رصيد</button>
+              <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:8px 14px;border-radius:8px;font-weight:800">${t.is_active===false?'تفعيل':'إيقاف'}</button>
             </td>
           </tr>`;
-        }).join('') || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#8B7A6B">ما في مطاعم مضافة بعد</td></tr>'}
+        }).join('') || '<tr><td colspan="8" style="padding:30px;text-align:center;color:#8B7A6B;font-size:1.05rem">ما في مطاعم مضافة بعد</td></tr>'}
       </table></div>`;
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
   }
   function paTenantForm(id){
     const t = id ? (window.__PA_TENANTS||[]).find(x=>x.id===id) : null;
     const box = document.getElementById('paTenantsList');
-    const formHtml = `<div style="background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;max-width:420px">
-      <div style="font-weight:900;margin-bottom:12px">${id?'تعديل مطعم':'مطعم جديد'}</div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">اسم المطعم</label>
-        <input id="pa_name" value="${t?(t.name||'').replace(/"/g,'&quot;'):''}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">الكود بالرابط (إنجليزي، بدون مسافات)</label>
-        <input id="pa_code" ${id?'disabled':''} value="${t?(t.code||''):''}" dir="ltr" placeholder="almadina" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">تاريخ انتهاء الاشتراك</label>
-        <input id="pa_expiry" type="date" value="${t?(t.subscription_expiry||''):''}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <div style="margin-bottom:14px"><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات الابتدائي</label>
-        <input id="pa_credits" type="number" value="${t?parseFloat(t.order_credits_balance||0):20}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <button onclick="paSaveTenant('${id||''}')" style="background:var(--maroon,#4a1010);color:#fff;padding:10px 20px;border-radius:10px;font-weight:900;margin-left:8px">حفظ</button>
-      <button onclick="paLoadTenants()" style="background:#eee;padding:10px 20px;border-radius:10px;font-weight:900">إلغاء</button>
+    const enabled = t && Array.isArray(t.enabled_features) ? t.enabled_features : null; // null = كل الميزات مفعّلة (افتراضي)
+    const isChecked = key => enabled ? enabled.includes(key) : true;
+    const formHtml = `<div style="background:#fff;border-radius:16px;padding:26px;margin-bottom:20px;max-width:900px;box-shadow:0 6px 24px rgba(0,0,0,.1)">
+      <div style="font-weight:900;font-size:1.25rem;margin-bottom:18px;color:var(--maroon,#4a1010)">${id?'✏️ تعديل مطعم':'＋ مطعم جديد'}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px">
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">اسم المطعم</label>
+          <input id="pa_name" value="${t?(t.name||'').replace(/"/g,'&quot;'):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">الكود بالرابط (إنجليزي)</label>
+          <input id="pa_code" ${id?'disabled':''} value="${t?(t.code||''):''}" dir="ltr" placeholder="almadina" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">تاريخ انتهاء الاشتراك</label>
+          <input id="pa_expiry" type="date" value="${t?(t.subscription_expiry||''):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات ${id?'':'الابتدائي'}</label>
+          <input id="pa_credits" type="number" value="${t?parseFloat(t.order_credits_balance||0):20}" ${id?'disabled title="استخدمي زر + رصيد لتعديله"':''} style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;${id?'background:#f5f5f5':''}"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">🏪 أقصى عدد فروع (فاضي = بلا حد)</label>
+          <input id="pa_maxbranches" type="number" min="0" value="${t&&t.max_branches!=null?t.max_branches:''}" placeholder="بلا حد" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">👥 أقصى عدد موظفين (فاضي = بلا حد)</label>
+          <input id="pa_maxstaff" type="number" min="0" value="${t&&t.max_staff!=null?t.max_staff:''}" placeholder="بلا حد" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:900;color:var(--maroon,#4a1010)">🧩 الشاشات المسموحة لهاد المطعم (${ALL_FEATURE_KEYS.length} شاشة)</div>
+        <div>
+          <button type="button" onclick="document.querySelectorAll('.pa-feat-chk').forEach(c=>c.checked=true)" style="background:#c8e6c9;padding:6px 12px;border-radius:8px;font-weight:800;font-size:.85rem;margin-left:6px">تحديد الكل</button>
+          <button type="button" onclick="document.querySelectorAll('.pa-feat-chk').forEach(c=>c.checked=false)" style="background:#ffcdd2;padding:6px 12px;border-radius:8px;font-weight:800;font-size:.85rem">إلغاء الكل</button>
+        </div>
+      </div>
+      <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;max-height:340px;overflow-y:auto;margin-bottom:20px">
+        ${PLATFORM_FEATURE_GROUPS.map(grp=>`
+          <div style="margin-bottom:14px">
+            <div style="font-weight:800;color:#8B7A6B;font-size:.85rem;margin-bottom:6px">${grp.g}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${grp.keys.map(([key,label])=>`<label style="display:flex;align-items:center;gap:6px;background:#f7f2e9;border-radius:8px;padding:7px 12px;font-weight:700;font-size:.88rem;cursor:pointer">
+                <input type="checkbox" class="pa-feat-chk" data-key="${key}" ${isChecked(key)?'checked':''}> ${label}
+              </label>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      <button onclick="paSaveTenant('${id||''}')" style="background:var(--maroon,#4a1010);color:#fff;padding:12px 26px;border-radius:10px;font-weight:900;margin-left:10px;font-size:1rem">💾 حفظ</button>
+      <button onclick="paLoadTenants()" style="background:#eee;padding:12px 26px;border-radius:10px;font-weight:900;font-size:1rem">إلغاء</button>
     </div>`;
     if(box) box.innerHTML = formHtml + (box.innerHTML||'');
   }
@@ -828,8 +873,16 @@
     const code = document.getElementById('pa_code')?.value.trim().toLowerCase();
     const expiry = document.getElementById('pa_expiry')?.value || null;
     const credits = parseFloat(document.getElementById('pa_credits')?.value) || 0;
+    const maxBranchesRaw = document.getElementById('pa_maxbranches')?.value.trim();
+    const maxStaffRaw = document.getElementById('pa_maxstaff')?.value.trim();
+    const max_branches = maxBranchesRaw==='' ? null : parseInt(maxBranchesRaw);
+    const max_staff = maxStaffRaw==='' ? null : parseInt(maxStaffRaw);
+    // 🧩 لو كل الشاشات محدّدة (تحديد الكل)، منحفظ null بدل مصفوفة كاملة — يعني "كل شي مفعّل
+    // افتراضيًا" حتى لو ضفنا شاشة 47 بالمستقبل ما بيحتاج المالكة ترجع تفعّلها يدويًا لكل مطعم قديم.
+    const checked = [...document.querySelectorAll('.pa-feat-chk:checked')].map(c=>c.dataset.key);
+    const enabled_features = checked.length === ALL_FEATURE_KEYS.length ? null : checked;
     if(!name || !code){ alert('⚠️ اكتبي الاسم والكود'); return; }
-    const rec = { name, subscription_expiry: expiry };
+    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features };
     if(!id){ rec.code = code; rec.order_credits_balance = credits; rec.is_active = true; }
     try{
       const { error } = id
@@ -859,6 +912,7 @@
       paLoadTenants();
     }catch(e){ alert('✗ '+e.message); }
   }
+
 
   // لو نجح، بيسمح لباقي كود التطبيق (تحت) يشيلها بالوقت العادي؛ لو فشل، بتضل واقفة عالرسالة للأبد.
   // 🏢 استثناء: لو الرابط فيه ?admin=1، هاد مش طلب مطعم — هاي بوابة المنصة الخاصة فيكِ إنتي بس
@@ -1723,7 +1777,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-02';
+  const APP_VERSION = '2026-09-01-03';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -16439,6 +16493,14 @@ try {
     if(rec.role==='cashier'&&!rec.branch_id){ toast('⚠️ الكاشير يحتاج فرع'); return; }
     const dup=STAFF.find(x=>x.pin===rec.pin&&x.id!==id&&x.is_active);
     if(dup){ toast('⚠️ PIN مستخدم'); return; }
+    // 👥 سقف عدد الموظفين (لو محدّد من لوحة المنصة) — بس عند إضافة موظف جديد، مش عند تعديل موجود
+    if(!id && TENANT && TENANT.max_staff!=null){
+      const current = STAFF.filter(x=>x.is_active).length;
+      if(current >= TENANT.max_staff){
+        toast('⛔ وصلتوا الحد الأقصى المسموح لعدد الموظفين ('+TENANT.max_staff+') — تواصلوا معنا لزيادته');
+        return;
+      }
+    }
     try {
       const r=id?await db.from('staff').update(rec).eq('id',id):await db.from('staff').insert(rec);
       if(r.error){ console.error('saveStaff error:', r.error); toast(r.error.code==='23505'?'⚠️ اسم المستخدم مكرر':'✗ فشل الحفظ: '+(r.error.message||r.error.code||'خطأ غير معروف')); return; }
@@ -16523,6 +16585,14 @@ try {
   async function saveBranch(id){
     if(!lockSubmit('saveBranch')) return;
     setTimeout(()=>unlockSubmit('saveBranch'), 15000);
+    // 🏢 سقف عدد الفروع (لو محدّد من لوحة المنصة) — بس عند إضافة فرع جديد، مش عند تعديل موجود
+    if(!id && TENANT && TENANT.max_branches!=null){
+      const current = BRANCHES.length;
+      if(current >= TENANT.max_branches){
+        toast('⛔ وصلتوا الحد الأقصى المسموح لعدد الفروع ('+TENANT.max_branches+') — تواصلوا معنا لزيادته');
+        return;
+      }
+    }
     const f_bn = document.getElementById('f_bn');
     const f_be = document.getElementById('f_be');
     const rec={name_ar: f_bn ? f_bn.value.trim() : '', address: f_be ? f_be.value.trim()||null : null};
