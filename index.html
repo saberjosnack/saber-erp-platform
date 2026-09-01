@@ -401,7 +401,7 @@
 <div id="loadingOverlay" style="position:fixed;inset:0;background:var(--cream);z-index:150;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--maroon);font-size:1.2rem">Saber<span style="color:var(--red)">ERP</span>...</div>
 <div id="app" class="hidden">
   <header>
-    <div class="brand">S<em>J</em>S <span style="font-weight:600;font-size:.85rem">POS</span></div>
+    <div class="brand" id="topBrand">Saber<em>ERP</em></div>
     <div id="shiftBadge" class="hidden" onclick="if(!currentShift)startShift()">🔴 لا يوجد شيفت مفتوح - اضغط لفتح</div>
     <button id="drawerBtn" class="hidden" onclick="openDrawerRequest()" style="background:var(--yellow);color:var(--maroon);border-radius:999px;padding:4px 12px;font-weight:900;font-size:.85rem">🔓 فتح الدرج</button>
     <div id="overdueBadge" class="hidden">⏰ طلبات متأخرة!</div>
@@ -774,6 +774,15 @@
       const subEl = document.getElementById('loginSubText');
       if(subEl) subEl.textContent = data.name + ' — نظام نقاط البيع';
     }
+    // 🖼️ شعار المطعم بأعلى شاشة الكاشير — صورة لو حاطة رابط شعار من لوحة المنصة، وإلا اسم المطعم نصيًا
+    const brandEl = document.getElementById('topBrand');
+    if(brandEl){
+      if(data.logo_url){
+        brandEl.innerHTML = `<img src="${data.logo_url}" style="height:32px;max-width:120px;object-fit:contain;vertical-align:middle;border-radius:6px" onerror="this.remove()">`;
+      } else if(data.name){
+        brandEl.textContent = data.name;
+      }
+    }
     return data;
   }
   // ================= 🏢 لوحة المنصة (مالكة Saber ERP) =================
@@ -810,6 +819,12 @@
     document.getElementById('paDashboard')?.classList.remove('hidden');
     paLoadTenants();
   }
+  const BILLING_LABELS = {
+    per_order: { label:'💳 بالطلب', color:'#0d6efd' },
+    monthly: { label:'📅 اشتراك شهري', color:'#2e7d32' },
+    annual: { label:'🏆 اشتراك سنوي', color:'#7b2cbf' },
+    trial: { label:'🎁 تجريبي', color:'#e8890c' },
+  };
   async function paLoadTenants(){
     const box = document.getElementById('paTenantsList');
     if(box) box.innerHTML = '<div style="text-align:center;padding:20px;color:#8B7A6B">⏳ جاري التحميل...</div>';
@@ -820,37 +835,68 @@
       ]);
       if(error){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+error.message+'</div>'; return; }
       window.__PA_TENANTS = data||[];
-      // 📊 إجمالي الطلبات يلي انضافتلها من البداية (كل الشحنات + الرصيد الابتدائي) — منقارنه
-      // بالرصيد الحالي المتبقي لنعرف كم طلب فعليًا استهلك المطعم لتاريخه
       const addedByTenant = {};
       (topupsData||[]).forEach(t=>{ addedByTenant[t.tenant_id] = (addedByTenant[t.tenant_id]||0) + parseFloat(t.orders_added||0); });
       const today = new Date().toISOString().split('T')[0];
-      if(box) box.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08)">
-        <tr style="background:var(--maroon,#4a1010);color:#fff;font-size:1.02rem"><th style="padding:14px">الاسم</th><th style="padding:14px">الكود</th><th style="padding:14px">الحالة</th><th style="padding:14px">انتهاء الاشتراك</th><th style="padding:14px">رصيد متبقي</th><th style="padding:14px">مستهلك من البداية</th><th style="padding:14px">الميزات المفعّلة</th><th style="padding:14px">حدود</th><th style="padding:14px"></th></tr>
+      if(box) box.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px">
         ${(data||[]).map(t=>{
           const expired = t.subscription_expiry && t.subscription_expiry < today;
+          const daysLeft = t.subscription_expiry ? Math.ceil((new Date(t.subscription_expiry)-new Date(today))/86400000) : null;
           const featCount = Array.isArray(t.enabled_features) ? t.enabled_features.length : ALL_FEATURE_KEYS.length;
           const featTotal = ALL_FEATURE_KEYS.length;
           const allOn = !Array.isArray(t.enabled_features);
           const totalAdded = addedByTenant[t.id]||0;
           const consumed = Math.max(0, totalAdded - parseFloat(t.order_credits_balance||0));
-          return `<tr style="border-bottom:1px solid #eee;font-size:.95rem">
-            <td style="padding:14px;font-weight:800">${(t.name||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:14px;font-family:monospace" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:14px">${t.is_active===false?'⛔ موقّف':(expired?'⏰ منتهي':'✅ فعّال')}</td>
-            <td style="padding:14px">${t.subscription_expiry||'—'}</td>
-            <td style="padding:14px;font-weight:800">${parseFloat(t.order_credits_balance||0).toFixed(0)}</td>
-            <td style="padding:14px;font-weight:800;color:#8B7A6B">${consumed.toFixed(0)}</td>
-            <td style="padding:14px">${allOn?'🟢 الكل ('+featTotal+')':featCount+' / '+featTotal}</td>
-            <td style="padding:14px;font-size:.85rem;color:#8B7A6B">🏪${t.max_branches??'∞'} · 👥${t.max_staff??'∞'}</td>
-            <td style="padding:14px;white-space:nowrap">
-              <button onclick="paTenantForm('${t.id}')" style="background:#e8d9a0;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">تعديل</button>
-              <button onclick="paAddCredits('${t.id}')" style="background:#c8e6c9;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">＋ رصيد</button>
-              <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:8px 14px;border-radius:8px;font-weight:800">${t.is_active===false?'تفعيل':'إيقاف'}</button>
-            </td>
-          </tr>`;
-        }).join('') || '<tr><td colspan="9" style="padding:30px;text-align:center;color:#8B7A6B;font-size:1.05rem">ما في مطاعم مضافة بعد</td></tr>'}
-      </table></div>`;
+          const billing = BILLING_LABELS[t.billing_type] || BILLING_LABELS.per_order;
+          const statusColor = t.is_active===false ? '#c0392b' : (expired ? '#e8890c' : '#2e7d32');
+          const statusLabel = t.is_active===false ? '⛔ موقّف' : (expired ? '⏰ منتهي' : '✅ فعّال');
+          return `<div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.09);border-top:5px solid ${statusColor}">
+            <div style="padding:18px 18px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2ede3">
+              ${t.logo_url?`<img src="${esc2(t.logo_url)}" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:1.5px solid #eee">`:`<div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4a1010,#7a2020);display:flex;align-items:center;justify-content:center;color:#D9A93C;font-weight:900;font-size:1.3rem">${(t.name||'؟').charAt(0)}</div>`}
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:900;font-size:1.1rem;color:var(--maroon,#4a1010);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(t.name||'—').replace(/</g,'&lt;')}</div>
+                <div style="font-family:monospace;font-size:.78rem;color:#8B7A6B" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</div>
+              </div>
+              <div style="font-weight:800;font-size:.8rem;padding:5px 10px;border-radius:20px;background:${statusColor}18;color:${statusColor}">${statusLabel}</div>
+            </div>
+            <div style="padding:16px 18px">
+              <div style="display:flex;gap:8px;margin-bottom:12px">
+                <span style="background:${billing.color}18;color:${billing.color};font-weight:800;font-size:.8rem;padding:5px 12px;border-radius:20px">${billing.label}</span>
+                ${t.subscription_expiry?`<span style="background:#f2ede3;color:#8B7A6B;font-weight:800;font-size:.8rem;padding:5px 12px;border-radius:20px">${expired?'منتهي منذ '+Math.abs(daysLeft)+' يوم':daysLeft+' يوم متبقي'}</span>`:''}
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+                ${t.billing_type && t.billing_type!=='per_order' ? `
+                  <div style="background:#f7f2e9;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:.75rem;color:#8B7A6B;font-weight:700">نوع الاشتراك</div>
+                    <div style="font-weight:900;color:var(--maroon,#4a1010)">بلا حد طلبات ♾️</div>
+                  </div>
+                  <div style="background:#f7f2e9;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:.75rem;color:#8B7A6B;font-weight:700">الانتهاء</div>
+                    <div style="font-weight:900;color:var(--maroon,#4a1010)">${t.subscription_expiry||'—'}</div>
+                  </div>
+                ` : `
+                  <div style="background:#f7f2e9;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:.75rem;color:#8B7A6B;font-weight:700">رصيد متبقي</div>
+                    <div style="font-weight:900;color:var(--maroon,#4a1010)">${parseFloat(t.order_credits_balance||0).toFixed(0)}</div>
+                  </div>
+                  <div style="background:#f7f2e9;border-radius:10px;padding:10px;text-align:center">
+                    <div style="font-size:.75rem;color:#8B7A6B;font-weight:700">مستهلك من البداية</div>
+                    <div style="font-weight:900;color:var(--maroon,#4a1010)">${consumed.toFixed(0)}</div>
+                  </div>
+                `}
+              </div>
+              <div style="font-size:.8rem;color:#8B7A6B;font-weight:700;margin-bottom:14px">
+                🧩 ${allOn?'كل الميزات ('+featTotal+')':featCount+' / '+featTotal+' ميزة'} &nbsp;·&nbsp; 🏪${t.max_branches??'∞'} فرع &nbsp;·&nbsp; 👥${t.max_staff??'∞'} موظف
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <button onclick="paTenantForm('${t.id}')" style="flex:1;background:#e8d9a0;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">✏️ تعديل</button>
+                <button onclick="paAddCredits('${t.id}')" style="flex:1;background:#c8e6c9;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">＋ رصيد</button>
+                <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="flex:1;background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">${t.is_active===false?'▶️ تفعيل':'⏸️ إيقاف'}</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('') || '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8B7A6B;font-size:1.05rem;background:#fff;border-radius:16px">ما في مطاعم مضافة بعد</div>'}
+      </div>`;
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
   }
   function paTenantForm(id){
@@ -860,14 +906,28 @@
     const isChecked = key => enabled ? enabled.includes(key) : true;
     const formHtml = `<div style="background:#fff;border-radius:16px;padding:26px;margin-bottom:20px;max-width:900px;box-shadow:0 6px 24px rgba(0,0,0,.1)">
       <div style="font-weight:900;font-size:1.25rem;margin-bottom:18px;color:var(--maroon,#4a1010)">${id?'✏️ تعديل مطعم':'＋ مطعم جديد'}</div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+        <img id="pa_logo_preview" src="${t&&t.logo_url?esc2(t.logo_url):''}" style="width:64px;height:64px;border-radius:14px;object-fit:cover;border:1.5px solid #ccc;${t&&t.logo_url?'':'display:none'}">
+        <div style="flex:1">
+          <label style="font-weight:700;display:block;margin-bottom:4px">🖼️ رابط شعار المطعم (لصق رابط صورة)</label>
+          <input id="pa_logo" value="${t?(t.logo_url||'').replace(/"/g,'&quot;'):''}" placeholder="https://..." dir="ltr" oninput="const p=document.getElementById('pa_logo_preview');p.src=this.value;p.style.display=this.value?'block':'none'" style="width:100%;padding:9px;border:1.5px solid #ccc;border-radius:8px">
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px">
         <div><label style="font-weight:700;display:block;margin-bottom:4px">اسم المطعم</label>
           <input id="pa_name" value="${t?(t.name||'').replace(/"/g,'&quot;'):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
         <div><label style="font-weight:700;display:block;margin-bottom:4px">الكود بالرابط (إنجليزي)</label>
           <input id="pa_code" ${id?'disabled':''} value="${t?(t.code||''):''}" dir="ltr" placeholder="almadina" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">💼 نوع الاشتراك</label>
+          <select id="pa_billing" onchange="document.getElementById('pa_creditsWrap').style.display=this.value==='per_order'?'block':'none'" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px">
+            <option value="per_order" ${(!t||!t.billing_type||t.billing_type==='per_order')?'selected':''}>💳 بالطلب (رصيد مسبق الدفع)</option>
+            <option value="monthly" ${t&&t.billing_type==='monthly'?'selected':''}>📅 اشتراك شهري (بلا حد طلبات)</option>
+            <option value="annual" ${t&&t.billing_type==='annual'?'selected':''}>🏆 اشتراك سنوي (بلا حد طلبات)</option>
+            <option value="trial" ${t&&t.billing_type==='trial'?'selected':''}>🎁 تجريبي (بلا حد طلبات، فترة قصيرة)</option>
+          </select></div>
         <div><label style="font-weight:700;display:block;margin-bottom:4px">تاريخ انتهاء الاشتراك</label>
           <input id="pa_expiry" type="date" value="${t?(t.subscription_expiry||''):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
-        <div><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات ${id?'':'الابتدائي'}</label>
+        <div id="pa_creditsWrap" style="${t&&t.billing_type&&t.billing_type!=='per_order'?'display:none':''}"><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات ${id?'':'الابتدائي'}</label>
           <input id="pa_credits" type="number" value="${t?parseFloat(t.order_credits_balance||0):20}" ${id?'disabled title="استخدمي زر + رصيد لتعديله"':''} style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;${id?'background:#f5f5f5':''}"></div>
         <div><label style="font-weight:700;display:block;margin-bottom:4px">🏪 أقصى عدد فروع (فاضي = بلا حد)</label>
           <input id="pa_maxbranches" type="number" min="0" value="${t&&t.max_branches!=null?t.max_branches:''}" placeholder="بلا حد" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
@@ -932,6 +992,8 @@
     const code = document.getElementById('pa_code')?.value.trim().toLowerCase();
     const expiry = document.getElementById('pa_expiry')?.value || null;
     const credits = parseFloat(document.getElementById('pa_credits')?.value) || 0;
+    const billing_type = document.getElementById('pa_billing')?.value || 'per_order';
+    const logo_url = document.getElementById('pa_logo')?.value.trim() || null;
     const maxBranchesRaw = document.getElementById('pa_maxbranches')?.value.trim();
     const maxStaffRaw = document.getElementById('pa_maxstaff')?.value.trim();
     const max_branches = maxBranchesRaw==='' ? null : parseInt(maxBranchesRaw);
@@ -941,7 +1003,7 @@
     const checked = [...document.querySelectorAll('.pa-feat-chk:checked')].map(c=>c.dataset.key);
     const enabled_features = checked.length === ALL_FEATURE_KEYS.length ? null : checked;
     if(!name || !code){ alert('⚠️ اكتبي الاسم والكود'); return; }
-    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features };
+    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features, billing_type, logo_url };
     if(!id){ rec.code = code; rec.order_credits_balance = credits; rec.is_active = true; }
     try{
       const { data, error } = id
@@ -1018,13 +1080,14 @@
             </div>
             <div style="background:#fff;border-radius:12px;max-height:400px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,.06)">
               <table style="width:100%;border-collapse:collapse;font-size:.88rem">
-                <tr style="background:#f7f2e9"><th style="padding:8px">المطعم</th><th style="padding:8px">طلبات</th><th style="padding:8px">المبلغ</th><th style="padding:8px">التاريخ</th></tr>
-                ${(topups||[]).map(t=>`<tr style="border-bottom:1px solid #eee">
+                <tr style="background:#f7f2e9"><th style="padding:8px">المطعم</th><th style="padding:8px">طلبات</th><th style="padding:8px">المبلغ</th><th style="padding:8px">التاريخ</th><th style="padding:8px"></th></tr>
+                ${(topups||[]).map((t,i)=>`<tr style="border-bottom:1px solid #eee">
                   <td style="padding:8px">${(t.tenant_name||'').replace(/</g,'&lt;')}</td>
                   <td style="padding:8px">${parseFloat(t.orders_added||0).toFixed(0)}</td>
                   <td style="padding:8px;font-weight:800">${t.amount_jod!=null?parseFloat(t.amount_jod).toFixed(2)+' د.أ':'—'}</td>
                   <td style="padding:8px;font-size:.8rem;color:#8B7A6B">${new Date(t.created_at).toLocaleDateString('ar-JO')}</td>
-                </tr>`).join('') || '<tr><td colspan="4" style="padding:16px;text-align:center;color:#8B7A6B">ما في دفعات مسجّلة بعد</td></tr>'}
+                  <td style="padding:8px">${t.amount_jod!=null?`<button onclick="paPrintInvoice(${i})" style="background:#e0d4f7;padding:5px 10px;border-radius:6px;font-weight:800;font-size:.78rem">🧾 فاتورة</button>`:''}</td>
+                </tr>`).join('') || '<tr><td colspan="5" style="padding:16px;text-align:center;color:#8B7A6B">ما في دفعات مسجّلة بعد</td></tr>'}
               </table>
             </div>
           </div>
@@ -1072,6 +1135,37 @@
       <button onclick="paSaveExpense()" style="background:var(--maroon,#4a1010);color:#fff;padding:9px 18px;border-radius:8px;font-weight:900">حفظ</button>
       <button onclick="document.getElementById('paExpenseFormBox').innerHTML=''" style="background:#eee;padding:9px 18px;border-radius:8px;font-weight:900">إلغاء</button>
     </div>`;
+  }
+  function paPrintInvoice(idx){
+    const t = (window.__PA_TOPUPS||[])[idx];
+    if(!t) return;
+    const invNum = 'SB-'+new Date(t.created_at).getFullYear()+'-'+String(idx+1).padStart(4,'0');
+    const html = `<html dir="rtl"><head><meta charset="UTF-8"><title>فاتورة ${invNum}</title><style>
+      body{font-family:Arial,sans-serif;padding:40px;color:#241310}
+      .head{display:flex;justify-content:space-between;align-items:center;border-bottom:4px solid #5E1420;padding-bottom:20px;margin-bottom:30px}
+      .logo{font-size:1.8rem;font-weight:900;color:#5E1420} .logo span{color:#D9A93C}
+      .inv-meta{text-align:left;font-size:.9rem;color:#8B7A6B}
+      table{width:100%;border-collapse:collapse;margin:20px 0}
+      th{background:#5E1420;color:#fff;padding:12px;text-align:right}
+      td{padding:12px;border-bottom:1px solid #eee}
+      .total{font-size:1.3rem;font-weight:900;color:#5E1420;text-align:left;margin-top:20px}
+      .footer{margin-top:50px;text-align:center;color:#8B7A6B;font-size:.85rem}
+      </style></head><body>
+      <div class="head">
+        <div class="logo">Saber<span>ERP</span></div>
+        <div class="inv-meta">فاتورة رقم: <b>${invNum}</b><br>التاريخ: ${new Date(t.created_at).toLocaleDateString('ar-JO')}</div>
+      </div>
+      <p><b>فاتورة إلى:</b> ${esc2(t.tenant_name)}</p>
+      <table>
+        <tr><th>البيان</th><th>الكمية</th><th>المبلغ</th></tr>
+        <tr><td>شحن رصيد طلبات — نظام Saber ERP</td><td>${parseFloat(t.orders_added||0).toFixed(0)} طلب</td><td>${parseFloat(t.amount_jod||0).toFixed(2)} د.أ</td></tr>
+      </table>
+      <div class="total">الإجمالي: ${parseFloat(t.amount_jod||0).toFixed(2)} د.أ</div>
+      <div class="footer">شكرًا لتعاملكم مع Saber ERP 💛<br>0790807761</div>
+      <script>window.print();<\/script>
+      </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(html); win.document.close();
   }
   async function paSaveExpense(){
     const category = document.getElementById('pe_cat')?.value;
@@ -1188,16 +1282,23 @@
     if(v===undefined || v===null || v==='') return defaultOn!==false;
     return v!==false && v!=='false';
   }
-  // 💳 رصيد الطلبات المسبق الدفع — بنظام تعدد المطاعم (TENANT موجود)، الرصيد مخزّن بجدول tenants
-  // نفسه (كل مطعم رصيده لحاله). بنسخة قديمة/مطعم وحيد (TENANT مش موجود)، بيرجع للإعداد القديم
-  // بـsettings كحل احتياطي، وإلا الميزة معطّلة بالكامل (بتبيع عادي بدون حد).
+  // 💳 رصيد الطلبات المسبق الدفع — بس لنوع اشتراك "بالطلب" (per_order). أنواع الاشتراك التانية
+  // (شهري/سنوي/تجريبي) بلا حد طلبات إطلاقًا — بس محكومة بتاريخ انتهاء الاشتراك (اللي أصلًا
+  // متفحوص بوابة الدخول). بنسخة قديمة/مطعم وحيد (TENANT مش موجود)، بيرجع للإعداد القديم كحل احتياطي.
   function hasOrderCredits(){
-    const bal = TENANT ? parseFloat(TENANT.order_credits_balance) : parseFloat(SETTINGS.order_credits_balance);
+    if(TENANT){
+      if(TENANT.billing_type && TENANT.billing_type!=='per_order') return true; // شهري/سنوي/تجريبي = بلا حد طلبات
+      const bal = parseFloat(TENANT.order_credits_balance);
+      if(isNaN(bal)) return true;
+      return bal > 0;
+    }
+    const bal = parseFloat(SETTINGS.order_credits_balance);
     if(isNaN(bal)) return true;
     return bal > 0;
   }
   async function consumeOrderCredit(){
     if(TENANT){
+      if(TENANT.billing_type && TENANT.billing_type!=='per_order') return; // بلا خصم لأنواع الاشتراك الثابتة
       const bal = parseFloat(TENANT.order_credits_balance);
       if(isNaN(bal)) return;
       const newBal = Math.max(0, bal - 1);
@@ -2023,7 +2124,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-08';
+  const APP_VERSION = '2026-09-01-10';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
