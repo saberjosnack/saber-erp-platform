@@ -9,7 +9,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>SJS POS — صابر جو سناك</title>
+  <title>Saber ERP — نظام نقاط البيع</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
   <link rel="manifest" href="manifest.json">
@@ -296,7 +296,7 @@
 <!-- ============ اختيار فرع الجهاز (مرة وحدة لهاد الجهاز) ============ -->
 <div id="deviceBranchScreen" class="hidden">
   <div class="login-card">
-    <div class="login-logo">S<span>J</span>S</div>
+    <div class="login-logo">Saber<span>ERP</span></div>
     <div class="login-sub">🖥️ هاد الجهاز — أي فرع يتبع؟</div>
     <div style="color:var(--muted);font-size:.82rem;font-weight:700;margin-bottom:16px">اختره مرة وحدة بس — بيتحدد فيه الطباعة تلقائيًا لهاد الجهاز بغض النظر مين بيسجل دخول</div>
     <select id="deviceBranchSelect" style="width:100%;padding:14px;border:2px solid var(--maroon);border-radius:12px;font-size:1.05rem;font-weight:800;margin-bottom:16px">
@@ -317,7 +317,7 @@
     <button onclick="platformAdminLogin()" style="width:100%;background:var(--maroon,#4a1010);color:#fff;padding:14px;border-radius:12px;font-weight:900;font-size:1.05rem">دخول</button>
     <div id="paLoginErr" style="color:var(--red,#F60100);font-weight:800;margin-top:10px;min-height:20px"></div>
   </div>
-  <div id="paDashboard" class="hidden" style="max-width:900px;margin:0 auto">
+  <div id="paDashboard" class="hidden" style="max-width:1400px;margin:0 auto;padding:0 10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
       <div style="font-weight:900;font-size:1.3rem;color:var(--maroon,#4a1010)">🏢 لوحة المنصة — إدارة المطاعم</div>
       <button onclick="paTenantForm()" style="background:var(--ok,#2e7d32);color:#fff;padding:10px 18px;border-radius:10px;font-weight:900">＋ إضافة مطعم جديد</button>
@@ -329,8 +329,8 @@
 <!-- ============ الدخول ============ -->
 <div id="loginScreen" class="hidden">
   <div class="login-card">
-    <div class="login-logo">S<span>J</span>S</div>
-    <div class="login-sub">صابر جو سناك — نظام نقاط البيع</div>
+    <div class="login-logo" id="loginLogoText">Saber<span>ERP</span></div>
+    <div class="login-sub" id="loginSubText">نظام نقاط البيع</div>
     <div class="pin-boxes">
       <div class="pin-box" id="pin1" onclick="focusPinInput()"></div>
       <div class="pin-box" id="pin2" onclick="focusPinInput()"></div>
@@ -389,7 +389,7 @@
 </div>
 
 <!-- ============ التطبيق ============ -->
-<div id="loadingOverlay" style="position:fixed;inset:0;background:var(--cream);z-index:150;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--maroon);font-size:1.2rem">S<span style="color:var(--red)">J</span>S...</div>
+<div id="loadingOverlay" style="position:fixed;inset:0;background:var(--cream);z-index:150;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--maroon);font-size:1.2rem">Saber<span style="color:var(--red)">ERP</span>...</div>
 <div id="app" class="hidden">
   <header>
     <div class="brand">S<em>J</em>S <span style="font-weight:600;font-size:.85rem">POS</span></div>
@@ -688,8 +688,8 @@
 
 <script>
   /* ================= الإعداد ================= */
-const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
-  const SB_KEY = "sb_publishable_jkJOc57GfQXVN1HHwI_2cA_lziCOInd";
+  const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
+  const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
   const CURRENCY = "د.أ";
   let LATE_MIN = 20;       // قابلة للتعديل من الإعدادات
   let READY_WAIT_MIN = 7;  // قابلة للتعديل من الإعدادات
@@ -718,6 +718,12 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
   // ⚠️ مهم تعرفيه: هاي المرحلة الأولى بس — بتحمي "مين يقدر يفتح النظام أصلاً". فلترة بيانات كل
   // مطعم لحاله (الطلبات، العملاء...) جوا الشاشات نفسها هي المرحلة الجاية، وبنبنيها تدريجيًا.
   let TENANT = null, TENANT_ID = null;
+  // 🏷️ اسم المطعم يستخدم بكل الفواتير/التقارير/الرسائل بدل ما يكون ثابت مكتوب بالكود — بياخده
+  // من بيانات المطعم (TENANT.name، بنظام تعدد المطاعم) أو من إعداد "اسم النشاط" العام كبديل،
+  // وإلا كلمة عامة "مطعمك" كحل أخير (عشان ما تطلع الفاتورة فاضية لو النسختين مش موجودين).
+  function bizName(){
+    return (TENANT && TENANT.name) || SETTINGS.business_name || 'مطعمك';
+  }
   function tenantBlockScreen(emoji, title, msg){
     const ov = document.getElementById('loadingOverlay');
     if(!ov) return;
@@ -754,10 +760,28 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       throw new Error('tenant subscription expired');
     }
     TENANT = data; TENANT_ID = data.id;
-    if(data.name) document.title = data.name + ' — Saber ERP';
+    if(data.name){
+      document.title = data.name + ' — Saber ERP';
+      const subEl = document.getElementById('loginSubText');
+      if(subEl) subEl.textContent = data.name + ' — نظام نقاط البيع';
+    }
     return data;
   }
   // ================= 🏢 لوحة المنصة (مالكة Saber ERP) =================
+  // 📋 قائمة كل شاشات النظام (46) — نفس المفاتيح المستخدمة فعليًا بـ canAccessAdminTab، مقسّمة
+  // لفئات لعرضها بشكل مريح بلوحة المنصة. أي مفتاح هون هو بالضبط يلي بيتفحص بـ TENANT.enabled_features.
+  const PLATFORM_FEATURE_GROUPS = [
+    { g:'المبيعات والكاشير', keys:[['items','🍔 الأصناف'],['reports','📊 التقارير'],['cats','📂 التصنيفات'],['codes','🎟️ أكواد الخصم'],['schedDisc','🏷️ خصومات مجدولة'],['ordersScreen','📋 الطلبيات']] },
+    { g:'المخزون والوصفات', keys:[['inventory','📋 جرد المخزون'],['warehouse','🏬 المستودع'],['dailyAudits','📋 جرد الفرع اليومي'],['spotCheck','🎯 جرد عشوائي (فجائي)'],['ingredients','🥩 المكونات'],['recipes','📋 الوصفات'],['manufacturing','🏭 التصنيع'],['transfers','🔄 نقل بضاعة'],['waste','🗑️ الإتلاف'],['productTimeline','📜 خط سير المنتج']] },
+    { g:'المشتريات والموردين', keys:[['purchases','🛒 المشتريات'],['suppliers','🚚 الموردين'],['supplierPayments','💳 دفعات الموردين'],['expenses','💸 المصاريف']] },
+    { g:'الموظفين والموارد البشرية', keys:[['staff','👥 الموظفين'],['roles','🛡️ الأدوار'],['dailyTasks','📝 مهام يومية'],['hr','🧑‍💼 HR'],['hrLocations','📍 مواقع الدخول'],['geoExcursions','🚨 خروج من النطاق'],['dutyHours','⏰ ساعات الدوام'],['shiftSchedule','🕐 جدول الدوام المحدد'],['hrClosures','📜 كشوفات الأشهر'],['breaksScreen','☕ البريكات'],['violations','🚩 المخالفات'],['deductions','➖ جدول الخصومات'],['rewards','🎁 جدول المكافآت'],['empmeals','🍽️ وجبات الموظفين']] },
+    { g:'الفروع والأجهزة', keys:[['branches','🏪 الفروع'],['devices','🖥️ الأجهزة'],['shifts','🔄 شيفتات']] },
+    { g:'العملاء', keys:[['topcust','🏆 أفضل العملاء'],['satisfaction','⭐ نقاط رضا العملاء'],['complaints','😠 شكاوي العملاء']] },
+    { g:'الكول سنتر والمنصات', keys:[['platforms','🛵 منصات التوصيل'],['ccPoints','📞 نقاط الكول سنتر']] },
+    { g:'المالية والتحكم', keys:[['treasury','💰 المصاري'],['activityLog','📜 سجل الأحداث'],['sett','🔧 إعدادات'],['chats','💬 المحادثات']] },
+  ];
+  const ALL_FEATURE_KEYS = PLATFORM_FEATURE_GROUPS.flatMap(g=>g.keys.map(k=>k[0]));
+
   function platformAdminLogin(){
     const val = document.getElementById('paPinInput')?.value.trim();
     const err = document.getElementById('paLoginErr');
@@ -775,41 +799,72 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       if(error){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+error.message+'</div>'; return; }
       window.__PA_TENANTS = data||[];
       const today = new Date().toISOString().split('T')[0];
-      if(box) box.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden">
-        <tr style="background:var(--maroon,#4a1010);color:#fff"><th style="padding:10px">الاسم</th><th style="padding:10px">الكود</th><th style="padding:10px">الحالة</th><th style="padding:10px">انتهاء الاشتراك</th><th style="padding:10px">رصيد الطلبات</th><th style="padding:10px"></th></tr>
+      if(box) box.innerHTML = `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.08)">
+        <tr style="background:var(--maroon,#4a1010);color:#fff;font-size:1.02rem"><th style="padding:14px">الاسم</th><th style="padding:14px">الكود</th><th style="padding:14px">الحالة</th><th style="padding:14px">انتهاء الاشتراك</th><th style="padding:14px">رصيد الطلبات</th><th style="padding:14px">الميزات المفعّلة</th><th style="padding:14px">حدود</th><th style="padding:14px"></th></tr>
         ${(data||[]).map(t=>{
           const expired = t.subscription_expiry && t.subscription_expiry < today;
-          return `<tr style="border-bottom:1px solid #eee">
-            <td style="padding:10px;font-weight:800">${(t.name||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:10px;font-family:monospace" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</td>
-            <td style="padding:10px">${t.is_active===false?'⛔ موقّف':(expired?'⏰ منتهي':'✅ فعّال')}</td>
-            <td style="padding:10px">${t.subscription_expiry||'—'}</td>
-            <td style="padding:10px;font-weight:800">${parseFloat(t.order_credits_balance||0).toFixed(0)}</td>
-            <td style="padding:10px;white-space:nowrap">
-              <button onclick="paTenantForm('${t.id}')" style="background:#e8d9a0;padding:6px 12px;border-radius:8px;font-weight:800;margin-left:4px">تعديل</button>
-              <button onclick="paAddCredits('${t.id}')" style="background:#c8e6c9;padding:6px 12px;border-radius:8px;font-weight:800;margin-left:4px">＋ رصيد</button>
-              <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:6px 12px;border-radius:8px;font-weight:800">${t.is_active===false?'تفعيل':'إيقاف'}</button>
+          const featCount = Array.isArray(t.enabled_features) ? t.enabled_features.length : ALL_FEATURE_KEYS.length;
+          const featTotal = ALL_FEATURE_KEYS.length;
+          const allOn = !Array.isArray(t.enabled_features);
+          return `<tr style="border-bottom:1px solid #eee;font-size:.95rem">
+            <td style="padding:14px;font-weight:800">${(t.name||'').replace(/</g,'&lt;')}</td>
+            <td style="padding:14px;font-family:monospace" dir="ltr">${(t.code||'').replace(/</g,'&lt;')}</td>
+            <td style="padding:14px">${t.is_active===false?'⛔ موقّف':(expired?'⏰ منتهي':'✅ فعّال')}</td>
+            <td style="padding:14px">${t.subscription_expiry||'—'}</td>
+            <td style="padding:14px;font-weight:800">${parseFloat(t.order_credits_balance||0).toFixed(0)}</td>
+            <td style="padding:14px">${allOn?'🟢 الكل ('+featTotal+')':featCount+' / '+featTotal}</td>
+            <td style="padding:14px;font-size:.85rem;color:#8B7A6B">🏪${t.max_branches??'∞'} · 👥${t.max_staff??'∞'}</td>
+            <td style="padding:14px;white-space:nowrap">
+              <button onclick="paTenantForm('${t.id}')" style="background:#e8d9a0;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">تعديل</button>
+              <button onclick="paAddCredits('${t.id}')" style="background:#c8e6c9;padding:8px 14px;border-radius:8px;font-weight:800;margin-left:4px">＋ رصيد</button>
+              <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:8px 14px;border-radius:8px;font-weight:800">${t.is_active===false?'تفعيل':'إيقاف'}</button>
             </td>
           </tr>`;
-        }).join('') || '<tr><td colspan="6" style="padding:20px;text-align:center;color:#8B7A6B">ما في مطاعم مضافة بعد</td></tr>'}
+        }).join('') || '<tr><td colspan="8" style="padding:30px;text-align:center;color:#8B7A6B;font-size:1.05rem">ما في مطاعم مضافة بعد</td></tr>'}
       </table></div>`;
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
   }
   function paTenantForm(id){
     const t = id ? (window.__PA_TENANTS||[]).find(x=>x.id===id) : null;
     const box = document.getElementById('paTenantsList');
-    const formHtml = `<div style="background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;max-width:420px">
-      <div style="font-weight:900;margin-bottom:12px">${id?'تعديل مطعم':'مطعم جديد'}</div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">اسم المطعم</label>
-        <input id="pa_name" value="${t?(t.name||'').replace(/"/g,'&quot;'):''}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">الكود بالرابط (إنجليزي، بدون مسافات)</label>
-        <input id="pa_code" ${id?'disabled':''} value="${t?(t.code||''):''}" dir="ltr" placeholder="almadina" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
-      <div style="margin-bottom:10px"><label style="font-weight:700;display:block;margin-bottom:4px">تاريخ انتهاء الاشتراك</label>
-        <input id="pa_expiry" type="date" value="${t?(t.subscription_expiry||''):''}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <div style="margin-bottom:14px"><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات الابتدائي</label>
-        <input id="pa_credits" type="number" value="${t?parseFloat(t.order_credits_balance||0):20}" style="width:100%;padding:10px;border:1.5px solid #ccc;border-radius:8px"></div>
-      <button onclick="paSaveTenant('${id||''}')" style="background:var(--maroon,#4a1010);color:#fff;padding:10px 20px;border-radius:10px;font-weight:900;margin-left:8px">حفظ</button>
-      <button onclick="paLoadTenants()" style="background:#eee;padding:10px 20px;border-radius:10px;font-weight:900">إلغاء</button>
+    const enabled = t && Array.isArray(t.enabled_features) ? t.enabled_features : null; // null = كل الميزات مفعّلة (افتراضي)
+    const isChecked = key => enabled ? enabled.includes(key) : true;
+    const formHtml = `<div style="background:#fff;border-radius:16px;padding:26px;margin-bottom:20px;max-width:900px;box-shadow:0 6px 24px rgba(0,0,0,.1)">
+      <div style="font-weight:900;font-size:1.25rem;margin-bottom:18px;color:var(--maroon,#4a1010)">${id?'✏️ تعديل مطعم':'＋ مطعم جديد'}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px">
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">اسم المطعم</label>
+          <input id="pa_name" value="${t?(t.name||'').replace(/"/g,'&quot;'):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">الكود بالرابط (إنجليزي)</label>
+          <input id="pa_code" ${id?'disabled':''} value="${t?(t.code||''):''}" dir="ltr" placeholder="almadina" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;font-family:monospace"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">تاريخ انتهاء الاشتراك</label>
+          <input id="pa_expiry" type="date" value="${t?(t.subscription_expiry||''):''}" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">رصيد الطلبات ${id?'':'الابتدائي'}</label>
+          <input id="pa_credits" type="number" value="${t?parseFloat(t.order_credits_balance||0):20}" ${id?'disabled title="استخدمي زر + رصيد لتعديله"':''} style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px;${id?'background:#f5f5f5':''}"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">🏪 أقصى عدد فروع (فاضي = بلا حد)</label>
+          <input id="pa_maxbranches" type="number" min="0" value="${t&&t.max_branches!=null?t.max_branches:''}" placeholder="بلا حد" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+        <div><label style="font-weight:700;display:block;margin-bottom:4px">👥 أقصى عدد موظفين (فاضي = بلا حد)</label>
+          <input id="pa_maxstaff" type="number" min="0" value="${t&&t.max_staff!=null?t.max_staff:''}" placeholder="بلا حد" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-weight:900;color:var(--maroon,#4a1010)">🧩 الشاشات المسموحة لهاد المطعم (${ALL_FEATURE_KEYS.length} شاشة)</div>
+        <div>
+          <button type="button" onclick="document.querySelectorAll('.pa-feat-chk').forEach(c=>c.checked=true)" style="background:#c8e6c9;padding:6px 12px;border-radius:8px;font-weight:800;font-size:.85rem;margin-left:6px">تحديد الكل</button>
+          <button type="button" onclick="document.querySelectorAll('.pa-feat-chk').forEach(c=>c.checked=false)" style="background:#ffcdd2;padding:6px 12px;border-radius:8px;font-weight:800;font-size:.85rem">إلغاء الكل</button>
+        </div>
+      </div>
+      <div style="border:1.5px solid #eee;border-radius:12px;padding:16px;max-height:340px;overflow-y:auto;margin-bottom:20px">
+        ${PLATFORM_FEATURE_GROUPS.map(grp=>`
+          <div style="margin-bottom:14px">
+            <div style="font-weight:800;color:#8B7A6B;font-size:.85rem;margin-bottom:6px">${grp.g}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px">
+              ${grp.keys.map(([key,label])=>`<label style="display:flex;align-items:center;gap:6px;background:#f7f2e9;border-radius:8px;padding:7px 12px;font-weight:700;font-size:.88rem;cursor:pointer">
+                <input type="checkbox" class="pa-feat-chk" data-key="${key}" ${isChecked(key)?'checked':''}> ${label}
+              </label>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+      <button onclick="paSaveTenant('${id||''}')" style="background:var(--maroon,#4a1010);color:#fff;padding:12px 26px;border-radius:10px;font-weight:900;margin-left:10px;font-size:1rem">💾 حفظ</button>
+      <button onclick="paLoadTenants()" style="background:#eee;padding:12px 26px;border-radius:10px;font-weight:900;font-size:1rem">إلغاء</button>
     </div>`;
     if(box) box.innerHTML = formHtml + (box.innerHTML||'');
   }
@@ -818,8 +873,16 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     const code = document.getElementById('pa_code')?.value.trim().toLowerCase();
     const expiry = document.getElementById('pa_expiry')?.value || null;
     const credits = parseFloat(document.getElementById('pa_credits')?.value) || 0;
+    const maxBranchesRaw = document.getElementById('pa_maxbranches')?.value.trim();
+    const maxStaffRaw = document.getElementById('pa_maxstaff')?.value.trim();
+    const max_branches = maxBranchesRaw==='' ? null : parseInt(maxBranchesRaw);
+    const max_staff = maxStaffRaw==='' ? null : parseInt(maxStaffRaw);
+    // 🧩 لو كل الشاشات محدّدة (تحديد الكل)، منحفظ null بدل مصفوفة كاملة — يعني "كل شي مفعّل
+    // افتراضيًا" حتى لو ضفنا شاشة 47 بالمستقبل ما بيحتاج المالكة ترجع تفعّلها يدويًا لكل مطعم قديم.
+    const checked = [...document.querySelectorAll('.pa-feat-chk:checked')].map(c=>c.dataset.key);
+    const enabled_features = checked.length === ALL_FEATURE_KEYS.length ? null : checked;
     if(!name || !code){ alert('⚠️ اكتبي الاسم والكود'); return; }
-    const rec = { name, subscription_expiry: expiry };
+    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features };
     if(!id){ rec.code = code; rec.order_credits_balance = credits; rec.is_active = true; }
     try{
       const { error } = id
@@ -850,13 +913,14 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     }catch(e){ alert('✗ '+e.message); }
   }
 
+
   // لو نجح، بيسمح لباقي كود التطبيق (تحت) يشيلها بالوقت العادي؛ لو فشل، بتضل واقفة عالرسالة للأبد.
   // 🏢 استثناء: لو الرابط فيه ?admin=1، هاد مش طلب مطعم — هاي بوابة المنصة الخاصة فيكِ إنتي بس
   // (Saber ERP)، وما إلها علاقة بأي مطعم معيّن، فمنتجاوز فحص المطعم بالكامل ومنفتح لوحة تانية.
   const IS_PLATFORM_ADMIN_MODE = new URLSearchParams(location.search).get('admin') === '1';
   // 🔒 رمز دخول المنصة — 8 أرقام (أقوى بكثير من الـ4 أرقام العادية لموظفي أي مطعم). غيّريه لرقم
   // من عندك قبل ما تنشري الرابط لأي حدا، وخليه رقم ما حدا يقدر يخمّنه (مش تاريخ ميلاد أو 12345678).
-  const PLATFORM_ADMIN_PIN = "84027193";
+  const PLATFORM_ADMIN_PIN = "12319375";
   const TENANT_GATE = IS_PLATFORM_ADMIN_MODE
     ? Promise.resolve().then(()=>{
         document.getElementById('loadingOverlay')?.remove();
@@ -1713,7 +1777,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-08-13-01';
+  const APP_VERSION = '2026-09-01-04';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2473,7 +2537,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       .diffbox b{font-size:18px}
       </style></head><body>
       <h2>تقرير إغلاق شيفت</h2>
-      <div class="c">Saber Jo Snack — ${br?esc(br.name_ar):''}</div>
+      <div class="c">${bizName()} — ${br?esc(br.name_ar):''}</div>
       <hr>
       <table>
         <tr><td>الموظف</td><td class="tl">${esc(ME.full_name)}</td></tr>
@@ -2538,7 +2602,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       <hr><div class="c">توقيع الموظف: ______________</div>
       </body></html>`;
     const text = 'تقرير إغلاق شيفت\n'+
-      '— Saber Jo Snack — '+(br?br.name_ar:'')+'\n'+
+      '— '+bizName()+' — '+(br?br.name_ar:'')+'\n'+
       '════════════════\n'+
       'الموظف: '+ME.full_name+'\n'+
       'من: '+started+'\n'+
@@ -2745,7 +2809,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       .big td{font-size:16px;font-weight:900}
       </style></head><body>
       <h2>🔓 سند سحب من الدرج</h2>
-      <div class="c">Saber Jo Snack — ${br?esc(br.name_ar):''}</div>
+      <div class="c">${bizName()} — ${br?esc(br.name_ar):''}</div>
       <hr>
       <table>
         <tr><td>التاريخ والوقت</td><td class="tl">${now}</td></tr>
@@ -2761,7 +2825,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       <hr><div class="c">توقيع الموظف: ______________</div>
       </body></html>`;
     const text = '🔓 سند سحب من الدرج\n'+
-      '— Saber Jo Snack — '+(br?br.name_ar:'')+'\n'+
+      '— '+bizName()+' — '+(br?br.name_ar:'')+'\n'+
       '════════════════\n'+
       'التاريخ: '+now+'\n'+
       'الموظف: '+ME.full_name+'\n'+
@@ -3621,7 +3685,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       'modern': `
         <div style="font-family:'Cairo',sans-serif;padding:12px;max-width:300px;background:linear-gradient(135deg,#fff,#f8f4f0);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
           <div style="text-align:center;border-bottom:2px solid var(--red);padding-bottom:8px">
-            <h2 style="color:var(--red);margin:0">🍔 SJS Snack</h2>
+            <h2 style="color:var(--red);margin:0">🍔 ${bizName()}</h2>
             <p style="margin:4px 0;font-size:12px;color:#666">${br ? br.name_ar : ''}</p>
           </div>
           <div style="padding:8px 0">
@@ -3660,7 +3724,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       'classic': `
         <div style="font-family:'Courier New',monospace;padding:10px;max-width:300px;border:2px solid #000;background:#fff">
           <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:6px">
-            <h2 style="margin:0">SJS SNACK</h2>
+            <h2 style="margin:0">${bizName().toUpperCase()}</h2>
             <p style="margin:2px 0;font-size:11px">${br ? br.name_ar : ''}</p>
           </div>
           <table style="width:100%;font-size:12px">
@@ -3697,7 +3761,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       `,
       'minimal': `
         <div style="font-family:sans-serif;padding:8px;max-width:280px;background:#fafafa;border:1px solid #ddd">
-          <div style="text-align:center;font-size:16px;font-weight:900">SJS</div>
+          <div style="text-align:center;font-size:16px;font-weight:900">${bizName()}</div>
           <div style="text-align:center;font-size:10px;color:#666">${br ? br.name_ar : ''}</div>
           <div style="font-size:11px;padding:4px 0;border-bottom:1px solid #ddd">
             #${ord.order_number} | ${new Date(ord.created_at).toLocaleString('ar-JO')}
@@ -3817,7 +3881,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     }
     text += '═'.repeat(32) + '\n';
     text += '  شكراً لزيارتكم  \n';
-    text += '  SJS 🍔  \n';
+    text += '  '+bizName()+' 🍔  \n';
     if(ord.__isReprint){
       text += '─'.repeat(32) + '\n';
       text += `أُعيدت الطباعة بواسطة: ${ord.__reprintBy||'—'}\n`;
@@ -3943,7 +4007,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       const sep = /^[═─-]{5,}/.test(line.trim());
       if(sep){ visualLines.push({isSep:true}); return; }
       const big = /SABER|إجمالي|تقرير/.test(line);
-      const centered = /SABER|شكرًا|توقيع|طلب #|SJS/.test(line);
+      const centered = /SABER|شكرًا|توقيع|طلب #/.test(line) || line.includes(bizName());
       mctx.font = "bold " + Math.round((big?30:26)*scale) + "px 'Cairo', Arial, sans-serif";
       if(mctx.measureText(line).width <= maxW){
         visualLines.push({text:line, isBig:big, isCentered:centered});
@@ -4226,7 +4290,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     const o = DAY.find(x=>x.id===id); if(!o) return;
     const num = (SETTINGS.delivery_whatsapp||'').replace(/\D/g,'');
     const items = (o.order_items||[]).map(l=>l.quantity+'× '+l.item_name).join('\n');
-    const msg = `🛵 *طلب توصيل SJS*\nفاتورة: #${o.order_number}\nالفرع: ${o.branches?.name_ar||''}\n——————\nالعميل: ${o.customers?.name||''}\nالهاتف: ${o.customers?.phone||''}\nالعنوان: ${o.customers?.address||''}\n——————\n${items}\n——————\nالإجمالي: ${fmt(o.total)} ${CURRENCY}`;
+    const msg = `🛵 *طلب توصيل ${bizName()}*\nفاتورة: #${o.order_number}\nالفرع: ${o.branches?.name_ar||''}\n——————\nالعميل: ${o.customers?.name||''}\nالهاتف: ${o.customers?.phone||''}\nالعنوان: ${o.customers?.address||''}\n——————\n${items}\n——————\nالإجمالي: ${fmt(o.total)} ${CURRENCY}`;
     const url = num ? `https://wa.me/${num}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   }
@@ -5131,7 +5195,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       </div>`);
   }
   function sendFeedbackRequest(custName, custPhone){
-    const template = SETTINGS.feedback_msg_template || 'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من صابر جو سناك؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 https://www.google.com/maps/place/Saber+Jo+Snack/@32.0186841,35.8578738,15.33z/data=!4m8!3m7!1s0x151c9f2da3f2b8e9:0xe10b35d58f8bc73!8m2!3d32.0225298!4d35.8554483!9m1!1b1!16s%2Fg%2F11yww9mzpw?entry=ttu&g_ep=EgoyMDI2MDcyMi4wIKXMDSoASAFQAw%3D%3D شكرًا إلك 💛';
+    const template = SETTINGS.feedback_msg_template || 'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من '+bizName()+'؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 (حطي رابط خرائط مطعمك من الإعدادات) شكرًا إلك 💛';
     const msg = template.replace(/\[الاسم\]/g, custName||'');
     let phone = (custPhone||'').replace(/\D/g,'');
     if(phone.startsWith('0')) phone = '962'+phone.slice(1);
@@ -5389,11 +5453,11 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
   let __bulkWaQueue = [];
   function openBulkWhatsapp(){
     if(!CUST_SELECTED.size){ toast('⚠️ حدد عميل واحد على الأقل'); return; }
-    const defaultMsg = SETTINGS.feedback_msg_template || 'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من صابر جو سناك؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 https://www.google.com/maps/place/Saber+Jo+Snack/@32.0186841,35.8578738,15.33z/data=!4m8!3m7!1s0x151c9f2da3f2b8e9:0xe10b35d58f8bc73!8m2!3d32.0225298!4d35.8554483!9m1!1b1!16s%2Fg%2F11yww9mzpw?entry=ttu&g_ep=EgoyMDI2MDcyMi4wIKXMDSoASAFQAw%3D%3D شكرًا إلك 💛';
+    const defaultMsg = SETTINGS.feedback_msg_template || 'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من '+bizName()+'؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 (حطي رابط خرائط مطعمك من الإعدادات) شكرًا إلك 💛';
     modal(`<h3>📢 رسالة واتساب جماعية</h3>
       <div style="color:var(--muted);font-size:.82rem;font-weight:700;margin-bottom:10px">هيك بتحدد لكل عميل واحد لحاله (واتساب ما بيسمح إرسال جماعي تلقائي بدون تطبيق رسمي) — بس هي أسرع طريقة: رسالة جاهزة، تفتح واتساب لكل عميل، تضغط إرسال، وننتقل للتالي.</div>
       <div class="fld"><label>نص الرسالة</label>
-        <textarea id="bulk_msg" rows="5" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem" placeholder="مرحبا [الاسم]، شو رأيك بطلبك الأخير من صابر جو سناك؟ رأيك بهمنا 🙏">${esc(defaultMsg)}</textarea>
+        <textarea id="bulk_msg" rows="5" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem" placeholder="مرحبا [الاسم]، شو رأيك بطلبك الأخير من ${bizName()}؟ رأيك بهمنا 🙏">${esc(defaultMsg)}</textarea>
         <div style="color:var(--muted);font-size:.78rem;margin-top:4px">💡 اكتب <b>[الاسم]</b> بأي مكان بالرسالة وبينحط اسم كل عميل تلقائيًا. 💡 تقدر تغيّر النص الافتراضي بشكل دائم من ⚙️ الإعدادات.</div>
       </div>
       <div class="m-act"><button class="save" onclick="startBulkWhatsapp()">🚀 ابدأ الإرسال (${CUST_SELECTED.size})</button><button class="cancel" onclick="closeModal()">إلغاء</button></div>`);
@@ -5832,7 +5896,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     const label = document.getElementById('repDateLabel')?.textContent || '';
 
     const text = 'تقرير المبيعات\n'+
-      '— Saber Jo Snack —\n'+
+      '— '+bizName()+' —\n'+
       (label?label+'\n':'')+
       '════════════════\n'+
       'مبيعات الأصناف (قبل الخصم): '+fmt(gross)+' '+CURRENCY+'\n'+
@@ -5848,7 +5912,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
 
     const htmlFallback = document.getElementById('salesKPI')?.outerHTML
       ? '<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right}</style></head><body>'
-        + '<h2>تقرير المبيعات — Saber Jo Snack</h2><div>'+label+'</div>'
+        + '<h2>تقرير المبيعات — '+bizName()+'</h2><div>'+label+'</div>'
         + (document.getElementById('salesKPI').innerHTML||'')
         + '</body></html>'
       : '<html><body>ما في بيانات</body></html>';
@@ -6141,6 +6205,12 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     platforms:'platforms_view', empmeals:'empmeals_view', topcust:'topcust_view', waste:'waste_log', suppliers:'purchases_view',
   };
   function canAccessAdminTab(tabKey){
+    // 🏢 تعدد المطاعم: لو هاد المطعم عنده باقة ميزات محدّدة من لوحة المنصة (enabled_features)،
+    // الشاشة لازم تكون ضمن الباقة أصلًا — حتى لو مالك المطعم نفسه معه كل الصلاحيات. هاي سقف
+    // من عندنا (Saber ERP)، مش من صلاحيات الموظفين الداخلية.
+    if(TENANT && Array.isArray(TENANT.enabled_features) && !TENANT.enabled_features.includes(tabKey)){
+      return false;
+    }
     // 🔒 استثناء دائم: شاشة "الأدوار" للمالك الحقيقي بس، حتى لو الدور المخصص معاه "كل صلاحيات المالك" —
     // وإلا صار ممكن يعدّل حاله صلاحيات أكتر وأكتر بنفسه بدون حدود.
     if(tabKey==='roles' && (!ME || ME.role!=='admin')) return false;
@@ -6246,6 +6316,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       const hasCreditsFeature = SETTINGS.order_credits_balance!==undefined && SETTINGS.order_credits_balance!==null && SETTINGS.order_credits_balance!=='';
       C.innerHTML=`<div class="mbox" style="max-width:480px">
         <h3>🔧 إعدادات النظام</h3>
+        <div class="fld"><label>🏪 اسم النشاط (يظهر بكل الفواتير والتقارير والرسائل)</label><input id="f_bizName" value="${esc(SETTINGS.business_name||'')}" placeholder="مثال: مطعم الذوق الرفيع"></div>
         ${hasCreditsFeature ? `<div class="fld" style="background:${hasOrderCredits()?'#eafbea':'#ffe0e0'};border-radius:12px;padding:14px 16px;margin-bottom:14px">
           <div style="font-weight:900;color:${hasOrderCredits()?'var(--ok)':'var(--red)'}">💳 رصيد الطلبات المتبقي: ${parseFloat(SETTINGS.order_credits_balance).toFixed(0)} طلب</div>
           <div style="font-size:.8rem;color:var(--muted);font-weight:700;margin-top:4px">${hasOrderCredits()?'الرصيد بينخصم واحد تلقائيًا مع كل طلب جديد. لو قرّب يخلص، تواصلي معنا للشحن.':'خلص الرصيد — النظام موقف عن قبول طلبات جديدة لحد ما ينشحن. تواصلي معنا فورًا.'}</div>
@@ -6253,7 +6324,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
         <div class="fld"><label>📱 رقم واتساب التوصيل</label><input id="f_wanum" inputmode="tel" value="${esc(SETTINGS.delivery_whatsapp||'')}"></div>
         <div class="fld"><label>📦 رقم واتساب "توريدات" عام (احتياطي لو المورد ماله رقم محدد)</label><input id="f_procWa" inputmode="tel" value="${esc(SETTINGS.procurement_whatsapp||'')}" placeholder="مثال: 962791234567"></div>
         <div class="fld"><label>💬 نص رسالة "جربتوا الأكل؟" الافتراضي (للعملاء)</label>
-          <textarea id="f_feedbackMsg" rows="4" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem" placeholder="مرحبا [الاسم]، شو رأيك بطلبك الأخير...">${esc(SETTINGS.feedback_msg_template||'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من صابر جو سناك؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 https://www.google.com/maps/place/Saber+Jo+Snack/@32.0186841,35.8578738,15.33z/data=!4m8!3m7!1s0x151c9f2da3f2b8e9:0xe10b35d58f8bc73!8m2!3d32.0225298!4d35.8554483!9m1!1b1!16s%2Fg%2F11yww9mzpw?entry=ttu&g_ep=EgoyMDI2MDcyMi4wIKXMDSoASAFQAw%3D%3D شكرًا إلك 💛')}</textarea>
+          <textarea id="f_feedbackMsg" rows="4" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem" placeholder="مرحبا [الاسم]، شو رأيك بطلبك الأخير...">${esc(SETTINGS.feedback_msg_template||'مرحبا [الاسم] 🙏 شو رأيك بطلبك الأخير من '+bizName()+'؟ رأيك بهمنا كتير وبيساعدنا نتحسّن. لو عندك دقيقة، تقييمك على خرائط جوجل بفرحنا كتير 🌟 (حطي رابط خرائط مطعمك من الإعدادات) شكرًا إلك 💛')}</textarea>
           <div style="color:var(--muted);font-size:.78rem;margin-top:4px">💡 اكتب <b>[الاسم]</b> بأي مكان وبينحط اسم كل عميل تلقائيًا وقت الإرسال — هاد النص هو يلي بيطلع افتراضيًا كل مرة تفتح "رسالة واتساب جماعية"</div>
         </div>
 
@@ -7927,7 +7998,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     const r = RECIPES_DATA.find(x=>x.id===id); if(!r) return;
     const itemName = r.menu_items?.name_ar||'—';
     const prepLines = (r.prep_method||'').split('\n').map(x=>x.trim()).filter(Boolean);
-    const text = 'ورقة وصفة — '+itemName+'\n— Saber Jo Snack —\n════════════════\n'+
+    const text = 'ورقة وصفة — '+itemName+'\n— '+bizName()+' —\n════════════════\n'+
       (r.recipe_items||[]).map(ri=>ri.quantity+' '+(ri.ingredients?.unit||'')+' — '+(ri.ingredients?.name||'—')+(withPrices?(' — '+fmt((ri.quantity||0)*(ri.ingredients?.unit_cost||0))+' '+CURRENCY):'')).join('\n')+
       (prepLines.length?('\n\nطريقة التحضير:\n'+prepLines.join('\n')):'')+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:20px}table{width:100%;border-collapse:collapse}td,th{padding:8px;border:1px solid #ccc;text-align:right;font-size:1rem}h2{text-align:center}.prep{margin-top:22px}.prep h3{color:#4a1010;border-bottom:2px solid #4a1010;padding-bottom:6px}.prep ol{font-size:1.05rem;line-height:1.9;padding-right:22px}@media print{.no-print{display:none}}</style></head><body>
@@ -8798,7 +8869,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
     if(filterCat) filtered = filtered.filter(e=>e.category===filterCat);
     if(filterBr) filtered = filtered.filter(e=>e.branch_id===filterBr);
     const total = filtered.reduce((a,e)=>a+parseFloat(e.amount||0),0);
-    const text = 'تقرير المصاريف\n— Saber Jo Snack —\n════════════════\n'+
+    const text = 'تقرير المصاريف\n— '+bizName()+' —\n════════════════\n'+
       filtered.map(e=>e.expense_date+' — '+(e.category||'—')+' — '+fmt(e.amount)).join('\n')+'\n════════════════\nالإجمالي: '+fmt(total)+' '+CURRENCY+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:16px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right}</style></head><body>
       <h2>تقرير المصاريف</h2>
@@ -9414,7 +9485,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       th{background:#fff8ee;font-weight:800}
       h3{margin-top:16px;color:#4a1010}
       </style></head><body>
-      <h1>🍔 Saber JO Snack — تقرير ${TYPE_AR[d.type]||''}</h1>
+      <h1>🍔 ${bizName()} — تقرير ${TYPE_AR[d.type]||''}</h1>
       <div class="sub">الفترة: ${d.from} → ${d.to} &nbsp;|&nbsp; الفرع: ${esc(branchName)} &nbsp;|&nbsp; تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}</div>
       ${bodyHtml}
       </body></html>`;
@@ -9510,7 +9581,7 @@ const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
       const peakSummary = Object.entries(byDayHour).sort((a,b)=>b[1].total-a[1].total).slice(0,15)
         .map(([k,v])=>{ const [d,h]=k.split('-'); return DAY_AR[d]+' الساعة '+h+':00 — '+v.count+' طلب — '+v.total.toFixed(1)+' '+CURRENCY; }).join('\n');
 
-      const summary = `بيانات مطعم "Saber JO Snack" لتحليل جدول الدوام الأمثل، للفترة من ${from} إلى ${to}${branchId?' (فرع محدد)':' (كل الفروع)'}:
+      const summary = `بيانات مطعم "${bizName()}" لتحليل جدول الدوام الأمثل، للفترة من ${from} إلى ${to}${branchId?' (فرع محدد)':' (كل الفروع)'}:
 
 إجمالي عدد الطلبات بالفترة: ${orders.length}
 
@@ -9596,7 +9667,7 @@ ${peakSummary}
       wasteRows.forEach(w=>{ const k=w.ingredients?.name||'—'; wasteByItem[k]=(wasteByItem[k]||0)+parseFloat(w.quantity||0)*parseFloat(w.ingredients?.unit_cost||0); });
       const wasteSorted = Object.entries(wasteByItem).sort((a,b)=>b[1]-a[1]).slice(0,8);
 
-      const summary = `بيانات مطعم "Saber JO Snack" للفترة من ${from} إلى ${to}${branchId?' (فرع محدد)':' (كل الفروع)'}:
+      const summary = `بيانات مطعم "${bizName()}" للفترة من ${from} إلى ${to}${branchId?' (فرع محدد)':' (كل الفروع)'}:
 عدد الطلبيات: ${orders.length}
 إجمالي المبيعات: ${totalSales.toFixed(2)} د.أ
 إجمالي الخصومات: ${totalDiscount.toFixed(2)} د.أ
@@ -9670,7 +9741,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
     d.innerHTML = `<div style="background:#fff;border-radius:18px;padding:0;max-width:560px;width:100%;max-height:94vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.4)">
         <div style="background:linear-gradient(160deg,var(--maroon),#2b0808);color:#fff;padding:22px 24px;text-align:center;flex-shrink:0">
           ${SETTINGS.invoice_logo?`<img src="${SETTINGS.invoice_logo}" style="max-width:56px;max-height:56px;object-fit:contain;margin-bottom:6px">`:''}
-          <div style="font-size:1.25rem;font-weight:900">🍔 Saber JO Snack — صابر جو سناك</div>
+          <div style="font-size:1.25rem;font-weight:900">🍔 ${bizName()} — ${bizName()}</div>
           <div style="font-size:.82rem;opacity:.85;font-weight:700;margin-top:2px">إقرار وموافقة على شروط وأحكام العمل</div>
         </div>
         <div style="padding:20px;overflow-y:auto;flex:1">
@@ -9899,7 +9970,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       .sig{text-align:center;margin-top:20px}
       .sig img{max-width:300px;border-bottom:2px solid #241414;padding-bottom:8px}
       </style></head><body>
-      <h1>🍔 Saber JO Snack — إقرار وموافقة على شروط وأحكام العمل</h1>
+      <h1>🍔 ${bizName()} — إقرار وموافقة على شروط وأحكام العمل</h1>
       <div class="sub">تاريخ الطباعة: ${new Date().toLocaleDateString('ar-JO')}</div>
       <table>
         <tr><td>الاسم الرباعي</td><td>${esc(r.full_name)}</td></tr>
@@ -10142,7 +10213,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
     if(filterSup) filtered = filtered.filter(p=>p.supplier===filterSup);
     if(filterIng) filtered = filtered.filter(p=>(p.purchase_items||[]).some(i=>i.ingredient_id===filterIng));
     const total = filtered.reduce((a,p)=>a+parseFloat(p.total||0),0);
-    const text = 'تقرير المشتريات\n— Saber Jo Snack —\n'+(filterSup?'المورد: '+filterSup+'\n':'')+'════════════════\n'+
+    const text = 'تقرير المشتريات\n— '+bizName()+' —\n'+(filterSup?'المورد: '+filterSup+'\n':'')+'════════════════\n'+
       filtered.map(p=>p.purchase_date+' — '+(p.supplier||'—')+' — '+fmt(p.total)).join('\n')+'\n════════════════\nالإجمالي: '+fmt(total)+' '+CURRENCY+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:16px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right}</style></head><body>
       <h2>تقرير المشتريات${filterSup?' — '+esc(filterSup):''}</h2>
@@ -10162,7 +10233,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       <style>body{font-family:Cairo,Arial;padding:28px}h1{color:#4a1010}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:8px 10px;border:1px solid #eadfd4;text-align:right;font-size:.85rem}th{background:#FFF8EE}.tot{font-weight:900;color:#F60100}@media print{.no-print{display:none}}</style>
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>🛒 تقرير المشتريات — Saber Jo Snack</h1>
+      <h1>🛒 تقرير المشتريات — ${bizName()}</h1>
       <div>${filterSup?'المورد: '+esc(filterSup)+' — ':''}تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
       <table><tr><th>التاريخ</th><th>المورد</th><th>المواد</th><th>الإجمالي</th><th>الدفع</th></tr>
       ${filtered.map(p=>`<tr><td>${p.purchase_date}</td><td>${esc(p.supplier||'—')}</td><td>${(p.purchase_items||[]).map(i=>esc(i.ingredients?.name||'—')).join('، ')}</td><td>${fmt(p.total)}</td><td>${p.payment_status==='cash'?'كاش':p.payment_status==='bank'?'بنك/كليك':p.payment_status==='capital'?'رأس المال':'دين'}</td></tr>`).join('')}
@@ -10609,7 +10680,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
       <h1>💹 تقرير الربح والخسارة المفصل</h1>
-      <div>Saber Jo Snack — الفترة: ${d.from} → ${d.to} (${d.daysInRange} يوم)</div>
+      <div>${bizName()} — الفترة: ${d.from} → ${d.to} (${d.daysInRange} يوم)</div>
       <table>
         <tr><th>صافي المبيعات (بدون توصيل ووجبات موظفين)</th><td>${fmt(d.sales)} ${CURRENCY}</td></tr>
         <tr><th>تكلفة البضاعة المستهلكة (COGS)</th><td>${fmt(d.cogs)} ${CURRENCY}</td></tr>
@@ -11271,7 +11342,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
             if(!bySup[supLabel]) bySup[supLabel] = [];
             bySup[supLabel].push(it);
           });
-          let msg = `📦 تقرير نواقص — ${branchName}\nصابر جو سناك — بعد جرد ${new Date().toLocaleDateString('ar-JO')}\n`;
+          let msg = `📦 تقرير نواقص — ${branchName}\n${bizName()} — بعد جرد ${new Date().toLocaleDateString('ar-JO')}\n`;
           Object.entries(bySup).forEach(([supLabel, items])=>{
             msg += `\n📍 المورد: ${supLabel}\n`;
             items.forEach(it=> msg += `🔴 ${it.ing.name} — المتوفر ${it.actual} ${it.ing.unit} — المطلوب ${it.need} ${it.ing.unit}\n`);
@@ -11628,7 +11699,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
         if(!bySup[supLabel]) bySup[supLabel] = [];
         bySup[supLabel].push({ ing, need, actual: r.actual });
       });
-      let msg = `📦 تقرير نواقص — ${branchName}\nصابر جو سناك — جرد ${new Date(a.created_at).toLocaleDateString('ar-JO')}\n`;
+      let msg = `📦 تقرير نواقص — ${branchName}\n${bizName()} — جرد ${new Date(a.created_at).toLocaleDateString('ar-JO')}\n`;
       Object.entries(bySup).forEach(([supLabel, items])=>{
         msg += `\n📍 المورد: ${supLabel}\n`;
         items.forEach(it=> msg += `🔴 ${it.ing.name} — المتوفر ${it.actual} ${it.ing.unit} — المطلوب ${it.need} ${it.ing.unit}\n`);
@@ -11776,7 +11847,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       const { data: supIngs } = await db.from('supplier_ingredients').select('*').eq('ingredient_id', ingId);
       const supNames = (supIngs||[]).map(si=>si.supplier);
       const supLabel = supNames.length ? supNames.join(' / ') : 'بدون مورد محدد';
-      const msg = `📦 تنبيه نقص — ${branchName}\nصابر جو سناك — ${new Date().toLocaleDateString('ar-JO')}\n\n`
+      const msg = `📦 تنبيه نقص — ${branchName}\n${bizName()} — ${new Date().toLocaleDateString('ar-JO')}\n\n`
         + `🔴 المادة: ${ing.name}\n📍 المورد: ${supLabel}\n📉 المتوفر حاليًا: ${actualStock} ${ing.unit}\n📦 الكمية المطلوب طلبها: ${need} ${ing.unit}\n\nمشكورين على التعاون 🙏`;
       const phone = (SETTINGS.procurement_whatsapp||'').replace(/\D/g,'');
       if(!phone){
@@ -12076,7 +12147,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
     const sup = suppliers.find(s=>s.name===supName);
     const phone = (sup?.whatsapp || sup?.phone || SETTINGS.procurement_whatsapp || '').replace(/\D/g,'');
     if(!phone){ toast('⚠️ ما في رقم واتساب — حدده بالمورد أو برقم "توريدات" العام بالإعدادات'); return; }
-    let msg = `📦 طلب توريد — ${supName}\nصابر جو سناك\n\n`;
+    let msg = `📦 طلب توريد — ${supName}\n${bizName()}\n\n`;
     items.forEach(it=>{ msg += `• ${it.name} (${it.branch}) — المتاح ${it.stock} ${it.unit}\n`; });
     msg += `\nمشكورين على التعاون 🙏`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -12217,7 +12288,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
         @media print{ .no-print{display:none} }
       </style></head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>🏬 تقرير المستودع — Saber Jo Snack</h1>
+      <h1>🏬 تقرير المستودع — ${bizName()}</h1>
       <div class="sub">الفترة: ${WH_FILTER.from} → ${WH_FILTER.to} — تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
       <h2>📦 الأرصدة الحالية — الإجمالي: <span class="tot">${fmt(totalValue)} ${CURRENCY}</span></h2>
       <table><tr><th>الفرع</th><th>المادة</th><th>الرصيد</th><th>الوحدة</th><th>سعر الوحدة</th><th>القيمة</th></tr>
@@ -12889,7 +12960,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
     win.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>كشف دفعات الموردين</title>
       <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse;font-size:.85rem}th,td{border:1px solid #999;padding:6px 8px;text-align:center}th{background:#5a1a1a;color:#FDE507}h1{text-align:center}
       @media print{button{display:none}}</style></head><body>
-      <h1>📄 كشف دفعات الموردين — Saber Jo Snack</h1>
+      <h1>📄 كشف دفعات الموردين — ${bizName()}</h1>
       <div style="text-align:center;font-weight:700;margin-bottom:14px">${SP_FILTER.from} → ${SP_FILTER.to}${SP_FILTER.supplier?' — المورد: '+esc(SP_FILTER.supplier):' — كل الموردين'}</div>
       <div style="text-align:center;font-weight:900;font-size:1.2rem;margin-bottom:14px">إجمالي المدفوع: ${fmt(total)} ${CURRENCY} — عدد الدفعات: ${payments.length}</div>
       <table><tr><th>التاريخ</th><th>المورد</th><th>المبلغ</th><th>طريقة الدفع</th><th>من حساب</th><th>الفرع</th><th>ملاحظة</th><th>بواسطة</th></tr>
@@ -13364,7 +13435,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
       <h1>📋 كشف شهر ${esc(c.month_label)} — ${esc(c.employee_name)}</h1>
-      <div>الفترة: ${c.period_from} → ${c.period_to} — Saber Jo Snack</div>
+      <div>الفترة: ${c.period_from} → ${c.period_to} — ${bizName()}</div>
       <div>انقفل بواسطة ${esc(c.closed_by||'—')} بتاريخ ${new Date(c.closed_at).toLocaleString('ar-JO')}</div>
       <table>
         <tr><th>📒 رصيد سابق (بداية الشهر)</th><td>${fmt(c.opening_balance)} ${CURRENCY}</td></tr>
@@ -13413,7 +13484,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       </style></head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
       <h1>📋 كشف حساب موظف — ${esc(r.emp.name)}</h1>
-      <div class="sub">الفترة: ${HR_FILTER.from} → ${HR_FILTER.to} — Saber Jo Snack — تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
+      <div class="sub">الفترة: ${HR_FILTER.from} → ${HR_FILTER.to} — ${bizName()} — تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
 
       <h2>الملخص</h2>
       <table>
@@ -13464,7 +13535,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       <style>body{font-family:Cairo,Arial;padding:28px}h1{color:#4a1010}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:8px 10px;border:1px solid #eadfd4;text-align:right;font-size:.85rem}th{background:#FFF8EE}.tot{font-weight:900;color:#F60100}@media print{.no-print{display:none}}</style>
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>🧑‍💼 تقرير HR — Saber Jo Snack</h1>
+      <h1>🧑‍💼 تقرير HR — ${bizName()}</h1>
       <div>الفترة: ${HR_FILTER.from} → ${HR_FILTER.to}</div>
       <table><tr><th>الموظف</th><th>سعر الساعة</th><th>ساعات العمل</th><th>أيام الحضور</th><th>الوجبات</th><th>قيمة الوجبات</th><th>السلف</th><th>خصم الشيفتات</th><th>صافي المستحق</th></tr>
       ${rows.map(r=>`<tr><td>${esc(r.emp.name)}</td><td>${fmt(r.emp.hourly_wage||0)}</td><td>${r.hours.toFixed(1)}</td><td>${r.days}</td><td>${r.mealsCount}</td><td>${fmt(r.mealsTotal)}</td><td>${fmt(r.advTotal)}</td><td>${fmt(r.shiftDeduction)}</td><td>${fmt(r.net)}</td></tr>`).join('')}
@@ -13806,7 +13877,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
       <style>body{font-family:Cairo,Arial;padding:28px}h1{color:#4a1010}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:8px 10px;border:1px solid #eadfd4;text-align:right;font-size:.85rem}th{background:#FFF8EE}@media print{.no-print{display:none}}</style>
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>💰 تقرير المصاري — Saber Jo Snack</h1>
+      <h1>💰 تقرير المصاري — ${bizName()}</h1>
       <div>الفترة: ${TR_FILTER.from} → ${TR_FILTER.to}</div>
       <table><tr><th>التاريخ</th><th>الحساب</th><th>النوع</th><th>المبلغ</th><th>ملاحظة</th><th>الموظف</th></tr>
       ${filtered.map(t=>`<tr><td>${new Date(t.created_at).toLocaleString('ar-JO')}</td><td>${t.account==='cash'?'كاش':'بنك/كليك'}</td><td>${esc(TR_TYPE_AR[t.type]||t.type)}</td><td>${fmt(t.amount)}</td><td>${esc(t.note||'—')}</td><td>${esc(t.created_by||'—')}</td></tr>`).join('')}
@@ -13836,7 +13907,7 @@ ${wasteSorted.map(r=>r[0]+' — '+r[1].toFixed(2)+' د.أ').join('\\n')||'لا �
     const filterStaff = window.__trFilterStaff||'';
     let filtered = TRANSFERS_DATA;
     if(filterStaff) filtered = filtered.filter(t=>t.created_by===filterStaff);
-    const text = 'تقرير نقل البضاعة\n— Saber Jo Snack —\n════════════════\n'+
+    const text = 'تقرير نقل البضاعة\n— '+bizName()+' —\n════════════════\n'+
       filtered.map(t=>new Date(t.created_at).toLocaleString('ar-JO')+' — '+(t.ingredients?.name||'—')+' × '+t.quantity+' — من '+t.from_branch_name+' إلى '+t.to_branch_name+' — بواسطة '+(t.created_by||'—')).join('\n')+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:16px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right;font-size:.85rem}</style></head><body>
       <h2>تقرير نقل البضاعة</h2>
@@ -14271,7 +14342,7 @@ window.__lastEmpMealsData = null;
   function printEmpMealsReport(){
     const d = window.__lastEmpMealsData; if(!d) return;
     const text = 'تقرير وجبات الموظفين\n'+
-      '— Saber Jo Snack —\n'+
+      '— '+bizName()+' —\n'+
       'الفترة: '+d.from+' → '+d.to+'\n'+
       '════════════════\n'+
       d.people.map(([name,p])=>name+': '+p.count+' وجبة — '+fmt(p.total)+' '+CURRENCY).join('\n')+'\n'+
@@ -14628,7 +14699,7 @@ window.__lastEmpMealsData = null;
       <div class="fld"><label>نسبة الخصم % (بتنحفظ على العميل وبتظهر للسنتر بأي طلب جاي)</label>
         <input id="vip_disc_pct" type="number" min="0" max="100" value="${c.vip_discount_percent||10}" style="border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;width:100%"></div>
       <div class="fld"><label>نص الرسالة</label>
-        <textarea id="bulk_msg" rows="5" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem">مرحبا [الاسم] 🎉، إنت من عملائنا المميزين! خصم خاص إلك 10% على طلبك الجاي من صابر جو سناك 🍔 — بانتظارك!</textarea>
+        <textarea id="bulk_msg" rows="5" style="width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-family:inherit;font-size:1rem">مرحبا [الاسم] 🎉، إنت من عملائنا المميزين! خصم خاص إلك 10% على طلبك الجاي من ${bizName()} 🍔 — بانتظارك!</textarea>
       </div>
       <div class="m-act"><button class="save" onclick="confirmSendVip('${custId}')">📱 حفظ الخصم وإرسال</button><button class="cancel" onclick="closeModal()">إلغاء</button></div>`);
   }
@@ -14650,7 +14721,7 @@ window.__lastEmpMealsData = null;
   let WASTE_DATA = [];
   function printWasteReport(){
     const d = window.__lastWasteData; if(!d) return;
-    const text = 'تقرير الإتلاف\n— Saber Jo Snack —\n'+d.from+' → '+d.to+'\n════════════════\n'+
+    const text = 'تقرير الإتلاف\n— '+bizName()+' —\n'+d.from+' → '+d.to+'\n════════════════\n'+
       'عدد العمليات: '+d.count+'\nالتكلفة: '+fmt(d.totalCost)+' '+CURRENCY+'\n────────────────\n'+
       d.staffRows.map(([n,x])=>n+': '+x.count+' عملية — '+fmt(x.cost)+' '+CURRENCY).join('\n')+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:16px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right}</style></head><body>
@@ -14664,7 +14735,7 @@ window.__lastEmpMealsData = null;
     const ing = INGR.find(x=>x.id===ingId);
     const br = BRANCHES.find(b=>b.id===branchId);
     const text = 'سند إتلاف\n'+
-      '— Saber Jo Snack —\n'+
+      '— '+bizName()+' —\n'+
       '════════════════\n'+
       'الفرع: '+(br?.name_ar||'—')+'\n'+
       'الموظف: '+ME.full_name+'\n'+
@@ -14682,7 +14753,7 @@ window.__lastEmpMealsData = null;
       hr{border:none;border-top:1px dashed #000;margin:5px 0}
       table{width:100%;border-collapse:collapse} td{padding:2px 0} .tl{text-align:left}
       </style></head><body>
-      <h2>سند إتلاف</h2><div class="c">Saber Jo Snack</div><hr>
+      <h2>سند إتلاف</h2><div class="c">${bizName()}</div><hr>
       <table>
         <tr><td>الفرع</td><td class="tl">${esc(br?.name_ar||'—')}</td></tr>
         <tr><td>الموظف</td><td class="tl">${esc(ME.full_name)}</td></tr>
@@ -14974,7 +15045,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       <style>body{font-family:Cairo,Arial;padding:28px}h1{color:#4a1010}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:8px 10px;border:1px solid #eadfd4;text-align:right;font-size:.9rem}th{background:#FFF8EE;width:35%}@media print{.no-print{display:none}}</style>
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>🗑️ سند إتلاف — Saber Jo Snack</h1>
+      <h1>🗑️ سند إتلاف — ${bizName()}</h1>
       <table>
         <tr><th>التاريخ والساعة</th><td>${new Date(w.created_at).toLocaleString('ar-JO')}</td></tr>
         <tr><th>الفرع</th><td>${esc(w.branches?.name_ar||'—')}</td></tr>
@@ -15055,7 +15126,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       <style>body{font-family:Cairo,Arial;padding:28px}h1{color:#4a1010}table{width:100%;border-collapse:collapse;margin-top:14px}td,th{padding:8px 10px;border:1px solid #eadfd4;text-align:right;font-size:.85rem}th{background:#FFF8EE}@media print{.no-print{display:none}}</style>
       </head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
-      <h1>🚚 تقرير الموردين — Saber Jo Snack</h1>
+      <h1>🚚 تقرير الموردين — ${bizName()}</h1>
       <div>تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
       <table><tr><th>المورد</th><th>الهاتف</th><th>عدد الفواتير</th><th>الإجمالي</th><th>الدين المستحق</th><th>آخر شراء</th></tr>
       ${SUPPLIERS_DATA.map(s=>{ const st=stats[s.name]||{count:0,total:0,last:null,debt:0};
@@ -15200,7 +15271,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
   }
   function printSupplierStatement(){
     const d = window.__lastSupplierStmt; if(!d) return;
-    const text = 'كشف حساب مورد — '+d.supplierName+'\n— Saber Jo Snack —\n'+d.from+' → '+d.to+'\n════════════════\n'+
+    const text = 'كشف حساب مورد — '+d.supplierName+'\n— '+bizName()+' —\n'+d.from+' → '+d.to+'\n════════════════\n'+
       'عدد الفواتير: '+d.list.length+'\nالإجمالي: '+fmt(d.total)+' '+CURRENCY+'\nالدين المستحق: '+fmt(d.debt)+' '+CURRENCY+'\n────────────────\n'+
       Object.entries(d.byItem).map(([nm,x])=>nm+': '+fmt(x.qty)+' '+x.unit+' — '+fmt(x.cost)+' '+CURRENCY).join('\n')+'\n';
     const html = `<html dir="rtl"><head><meta charset="UTF-8"><style>body{font-family:Cairo,Arial;padding:16px}table{width:100%;border-collapse:collapse}td,th{padding:6px;border:1px solid #ccc;text-align:right}</style></head><body>
@@ -15229,7 +15300,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       </style></head><body>
       <button class="no-print" onclick="window.print()" style="margin-bottom:16px;background:#4a1010;color:#FDE507;border:none;border-radius:10px;padding:10px 20px;font-weight:800;cursor:pointer">🖨️ طباعة / حفظ PDF</button>
       <h1>📄 كشف حساب مورد — ${esc(d.supplierName)}</h1>
-      <div class="sub">الفترة: ${d.from} → ${d.to} — Saber Jo Snack — تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
+      <div class="sub">الفترة: ${d.from} → ${d.to} — ${bizName()} — تاريخ الطباعة: ${new Date().toLocaleString('ar-JO')}</div>
 
       <h2>الملخص</h2>
       <table><tr><th>عدد الفواتير</th><th>إجمالي المشتريات</th><th>مدفوع بالفترة</th><th>الدين المستحق حاليًا</th></tr>
@@ -15493,7 +15564,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       return { oComm, oNet, items };
     };
     const text = 'كشف حساب — '+d.platformName+'\n'+
-      '— Saber Jo Snack —\n'+
+      '— '+bizName()+' —\n'+
       'الفترة: '+d.from+' → '+d.to+'\n'+
       '════════════════\n'+
       'عدد الطلبات: '+d.orders.length+'\n'+
@@ -15685,7 +15756,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
 
   function printTransferReceipt(fromBranch, toBranch, items, fee, notes){
     const text = 'سند نقل بضاعة\n'+
-      '— Saber Jo Snack —\n'+
+      '— '+bizName()+' —\n'+
       '════════════════\n'+
       'من: '+(fromBranch?.name_ar||'—')+'\n'+
       'إلى: '+(toBranch?.name_ar||'—')+'\n'+
@@ -15705,7 +15776,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       table{width:100%;border-collapse:collapse} td{padding:2px 0} .tl{text-align:left}
       </style></head><body>
       <h2>سند نقل بضاعة</h2>
-      <div class="c">Saber Jo Snack</div><hr>
+      <div class="c">${bizName()}</div><hr>
       <table>
         <tr><td>من</td><td class="tl">${esc(fromBranch?.name_ar||'—')}</td></tr>
         <tr><td>إلى</td><td class="tl">${esc(toBranch?.name_ar||'—')}</td></tr>
@@ -15875,6 +15946,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
       auto_print_branch: f_autoPrintBranch ? f_autoPrintBranch.checked : false,
     });
     const settings = {
+      business_name: document.getElementById('f_bizName')?.value.trim() || '',
       ai_invoice_enabled: document.getElementById('f_aiEnabled')?.checked ?? false,
       ai_model: document.getElementById('f_aiModel')?.value || 'claude-sonnet-5',
       hr_portal_show_hours: document.getElementById('f_hrShowHours')?.checked ?? true,
@@ -16421,6 +16493,14 @@ try {
     if(rec.role==='cashier'&&!rec.branch_id){ toast('⚠️ الكاشير يحتاج فرع'); return; }
     const dup=STAFF.find(x=>x.pin===rec.pin&&x.id!==id&&x.is_active);
     if(dup){ toast('⚠️ PIN مستخدم'); return; }
+    // 👥 سقف عدد الموظفين (لو محدّد من لوحة المنصة) — بس عند إضافة موظف جديد، مش عند تعديل موجود
+    if(!id && TENANT && TENANT.max_staff!=null){
+      const current = STAFF.filter(x=>x.is_active).length;
+      if(current >= TENANT.max_staff){
+        toast('⛔ وصلتوا الحد الأقصى المسموح لعدد الموظفين ('+TENANT.max_staff+') — تواصلوا معنا لزيادته');
+        return;
+      }
+    }
     try {
       const r=id?await db.from('staff').update(rec).eq('id',id):await db.from('staff').insert(rec);
       if(r.error){ console.error('saveStaff error:', r.error); toast(r.error.code==='23505'?'⚠️ اسم المستخدم مكرر':'✗ فشل الحفظ: '+(r.error.message||r.error.code||'خطأ غير معروف')); return; }
@@ -16505,6 +16585,14 @@ try {
   async function saveBranch(id){
     if(!lockSubmit('saveBranch')) return;
     setTimeout(()=>unlockSubmit('saveBranch'), 15000);
+    // 🏢 سقف عدد الفروع (لو محدّد من لوحة المنصة) — بس عند إضافة فرع جديد، مش عند تعديل موجود
+    if(!id && TENANT && TENANT.max_branches!=null){
+      const current = BRANCHES.length;
+      if(current >= TENANT.max_branches){
+        toast('⛔ وصلتوا الحد الأقصى المسموح لعدد الفروع ('+TENANT.max_branches+') — تواصلوا معنا لزيادته');
+        return;
+      }
+    }
     const f_bn = document.getElementById('f_bn');
     const f_be = document.getElementById('f_be');
     const rec={name_ar: f_bn ? f_bn.value.trim() : '', address: f_be ? f_be.value.trim()||null : null};
