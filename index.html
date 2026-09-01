@@ -892,10 +892,40 @@
             </div>
           </div>`).join('')}
       </div>
+      ${id ? `<div style="border:1.5px solid #d9c400;background:#fffbe8;border-radius:12px;padding:16px;margin-bottom:20px">
+        <div style="font-weight:900;color:var(--maroon,#4a1010);margin-bottom:8px">👤 حساب صاحب المطعم</div>
+        <div style="font-size:.85rem;color:#8B7A6B;font-weight:700;margin-bottom:10px">رابط متجره: <span style="font-family:monospace;background:#fff;padding:2px 8px;border-radius:6px" dir="ltr">${location.origin}${location.pathname}?r=${esc2(t?.code||'')}</span>
+          <button type="button" onclick="navigator.clipboard.writeText('${location.origin}${location.pathname}?r=${esc2(t?.code||'')}');toast('✓ انسخ الرابط')" style="background:#e0d4f7;padding:4px 10px;border-radius:6px;font-weight:800;font-size:.78rem;margin-right:6px">نسخ</button>
+        </div>
+        <button type="button" onclick="paCreateOwnerAccount('${id}','${esc2(t?.name||'')}','${esc2(t?.code||'')}')" style="background:var(--maroon,#4a1010);color:#fff;padding:9px 18px;border-radius:8px;font-weight:900;font-size:.9rem">＋ إنشاء حساب مالك جديد له</button>
+        <div id="paOwnerAccResult" style="margin-top:10px"></div>
+      </div>` : ''}
       <button onclick="paSaveTenant('${id||''}')" style="background:var(--maroon,#4a1010);color:#fff;padding:12px 26px;border-radius:10px;font-weight:900;margin-left:10px;font-size:1rem">💾 حفظ</button>
       <button onclick="paLoadTenants()" style="background:#eee;padding:12px 26px;border-radius:10px;font-weight:900;font-size:1rem">إلغاء</button>
     </div>`;
     if(box) box.innerHTML = formHtml + (box.innerHTML||'');
+  }
+  async function paCreateOwnerAccount(tenantId, tenantName, tenantCode){
+    const box = document.getElementById('paOwnerAccResult');
+    const username = (tenantCode||'owner') + '_' + Math.floor(1000+Math.random()*9000);
+    const pin = String(Math.floor(1000+Math.random()*9000));
+    try{
+      const { error } = await db.from('staff').insert({
+        username, pin, full_name: (tenantName||'صاحب المطعم')+' — مالك',
+        role: 'admin', is_active: true, tenant_id: tenantId,
+      });
+      if(error){ if(box) box.innerHTML = '<div style="color:red;font-weight:800">✗ '+error.message+'</div>'; return; }
+      const link = location.origin+location.pathname+'?r='+encodeURIComponent(tenantCode||'');
+      if(box) box.innerHTML = `<div style="background:#eafbea;border:1.5px solid var(--ok,#2e7d32);border-radius:10px;padding:14px;margin-top:10px">
+        <div style="font-weight:900;color:var(--ok,#2e7d32);margin-bottom:8px">✅ اتعمل الحساب! ابعتيلهم هاي التفاصيل:</div>
+        <div style="font-family:monospace;background:#fff;border-radius:8px;padding:10px;font-size:.9rem;line-height:2">
+          🔗 الرابط: <span dir="ltr">${link}</span><br>
+          👤 اسم المستخدم: <b>${username}</b><br>
+          🔑 الرقم السري: <b>${pin}</b>
+        </div>
+        <button type="button" onclick="navigator.clipboard.writeText('الرابط: ${link}\\nاسم المستخدم: ${username}\\nالرقم السري: ${pin}');toast('✓ انسخ كل التفاصيل')" style="background:var(--ok,#2e7d32);color:#fff;padding:7px 16px;border-radius:8px;font-weight:800;margin-top:8px;font-size:.85rem">📋 نسخ كل التفاصيل</button>
+      </div>`;
+    }catch(e){ if(box) box.innerHTML = '<div style="color:red;font-weight:800">✗ '+e.message+'</div>'; }
   }
   async function paSaveTenant(id){
     const name = document.getElementById('pa_name')?.value.trim();
@@ -1104,14 +1134,24 @@
     if(v===undefined || v===null || v==='') return defaultOn!==false;
     return v!==false && v!=='false';
   }
-  // 💳 رصيد الطلبات المسبق الدفع — لو الإعداد order_credits_balance مش موجود أصلًا بقاعدة بيانات
-  // هالمطعم (نسخة ما انفعّل فيها النظام هذا)، ما منمنع البيع إطلاقًا — الميزة اختيارية بالكامل.
+  // 💳 رصيد الطلبات المسبق الدفع — بنظام تعدد المطاعم (TENANT موجود)، الرصيد مخزّن بجدول tenants
+  // نفسه (كل مطعم رصيده لحاله). بنسخة قديمة/مطعم وحيد (TENANT مش موجود)، بيرجع للإعداد القديم
+  // بـsettings كحل احتياطي، وإلا الميزة معطّلة بالكامل (بتبيع عادي بدون حد).
   function hasOrderCredits(){
-    const bal = parseFloat(SETTINGS.order_credits_balance);
+    const bal = TENANT ? parseFloat(TENANT.order_credits_balance) : parseFloat(SETTINGS.order_credits_balance);
     if(isNaN(bal)) return true;
     return bal > 0;
   }
   async function consumeOrderCredit(){
+    if(TENANT){
+      const bal = parseFloat(TENANT.order_credits_balance);
+      if(isNaN(bal)) return;
+      const newBal = Math.max(0, bal - 1);
+      TENANT.order_credits_balance = newBal;
+      try{ await db.from('tenants').update({ order_credits_balance: newBal }).eq('id', TENANT.id); }
+      catch(e){ console.error('consumeOrderCredit (tenant) failed:', e); }
+      return;
+    }
     const bal = parseFloat(SETTINGS.order_credits_balance);
     if(isNaN(bal)) return; // الميزة غير مفعّلة بهالنسخة
     const newBal = Math.max(0, bal - 1);
@@ -1578,6 +1618,15 @@
               return;
           }
 
+          // 🏢 تعدد المطاعم: لو إحنا بسياق مطعم معيّن (TENANT محدّد من الرابط)، لازم نتأكد إنه
+          // هاد الحساب فعليًا تابع لنفس المطعم — وإلا رقم سري صح بمطعم تاني كان رح يقدر يفتح
+          // حساب مطعمك أنتي! (بشرط إنه عمود tenant_id مرجّع فعليًا من الـEdge Function).
+          if(TENANT && data.staff.tenant_id!==undefined && data.staff.tenant_id!==null && data.staff.tenant_id!==TENANT.id){
+              if (err) err.textContent = '❌ رمز غير صحيح';
+              window.pinClear();
+              return;
+          }
+
           ME = data.staff;
           sessionStorage.setItem('sjs_me', JSON.stringify(ME));
           const proceedAfterLogin = () => {
@@ -1920,7 +1969,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-05';
+  const APP_VERSION = '2026-09-01-06';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2315,7 +2364,7 @@
       }
       // 💳 تنبيه رصيد الطلبات — للمالك بس، مرة وحدة بالجلسة (مش كل تحديث خلفي) عشان ما يصير مزعج
       if(ME && isAdmin() && !window.__creditWarnShown){
-        const bal = parseFloat(SETTINGS.order_credits_balance);
+        const bal = TENANT ? parseFloat(TENANT.order_credits_balance) : parseFloat(SETTINGS.order_credits_balance);
         if(!isNaN(bal)){
           window.__creditWarnShown = true;
           if(bal<=0) toast('⛔ خلص رصيد الطلبات — تواصلوا معنا لشحن رصيد جديد فورًا');
@@ -6456,12 +6505,18 @@
     if(admView==='waste'){ renderWaste(); return; }
     if(admView==='suppliers'){ renderSuppliers(); return; }
     if(admView==='sett'){
-      const hasCreditsFeature = SETTINGS.order_credits_balance!==undefined && SETTINGS.order_credits_balance!==null && SETTINGS.order_credits_balance!=='';
+      const creditsVal = TENANT ? TENANT.order_credits_balance : SETTINGS.order_credits_balance;
+      const hasCreditsFeature = creditsVal!==undefined && creditsVal!==null && creditsVal!=='';
+      const SUPPORT_PHONE = '0790807761'; // 📞 رقم الدعم والشحن — Saber ERP
       C.innerHTML=`<div class="mbox" style="max-width:480px">
         <h3>🔧 إعدادات النظام</h3>
+        <div class="fld" style="background:#eef6ff;border-radius:12px;padding:14px 16px;margin-bottom:14px;text-align:center">
+          <div style="font-weight:900;color:var(--maroon);margin-bottom:6px">📞 الدعم الفني وشحن رصيد الطلبات</div>
+          <a href="https://wa.me/962${SUPPORT_PHONE.replace(/^0/,'')}" target="_blank" style="display:inline-block;background:#25D366;color:#fff;padding:10px 20px;border-radius:10px;font-weight:900;text-decoration:none">💬 تواصلي عبر واتساب — ${SUPPORT_PHONE}</a>
+        </div>
         <div class="fld"><label>🏪 اسم النشاط (يظهر بكل الفواتير والتقارير والرسائل)</label><input id="f_bizName" value="${esc(SETTINGS.business_name||'')}" placeholder="مثال: مطعم الذوق الرفيع"></div>
         ${hasCreditsFeature ? `<div class="fld" style="background:${hasOrderCredits()?'#eafbea':'#ffe0e0'};border-radius:12px;padding:14px 16px;margin-bottom:14px">
-          <div style="font-weight:900;color:${hasOrderCredits()?'var(--ok)':'var(--red)'}">💳 رصيد الطلبات المتبقي: ${parseFloat(SETTINGS.order_credits_balance).toFixed(0)} طلب</div>
+          <div style="font-weight:900;color:${hasOrderCredits()?'var(--ok)':'var(--red)'}">💳 رصيد الطلبات المتبقي: ${parseFloat(creditsVal).toFixed(0)} طلب</div>
           <div style="font-size:.8rem;color:var(--muted);font-weight:700;margin-top:4px">${hasOrderCredits()?'الرصيد بينخصم واحد تلقائيًا مع كل طلب جديد. لو قرّب يخلص، تواصلي معنا للشحن.':'خلص الرصيد — النظام موقف عن قبول طلبات جديدة لحد ما ينشحن. تواصلي معنا فورًا.'}</div>
         </div>` : ''}
         <div class="fld"><label>📱 رقم واتساب التوصيل</label><input id="f_wanum" inputmode="tel" value="${esc(SETTINGS.delivery_whatsapp||'')}"></div>
