@@ -1101,6 +1101,56 @@
       })
     : resolveTenantGate().catch(()=>{ window.__tenantBlocked = true; });
 
+  // ================= 🔒 حماية بيانات كل مطعم (عزل تلقائي بين المطاعم) =================
+  // طبقة واحدة مركزية بتلف حول db.from() وتفرض تلقائيًا: أي قراءة/كتابة/تعديل/حذف على أي جدول
+  // من الجداول تحت تكون محصورة بمطعم TENANT الحالي بس — بدون ما نحتاج نلمس مئات أماكن الاستدعاء
+  // بالكود. لو TENANT مش محدّد (نسخة قديمة لمطعم واحد، أو وضع لوحة المنصة نفسها)، ما بيصير أي
+  // تغيير إطلاقًا — تشتغل عادي زي ما كانت (تحمي بس لما إحنا فعليًا بسياق مطعم محدد من الرابط).
+  // ⚠️ مهم: أي صف اتسجّل قبل تفعيل هالحماية وما إله tenant_id، رح يختفي من العرض لحد ما يتحدّث
+  // يدويًا (عادي بمرحلة الاختبار الحالية، بس خبريني لو عندك بيانات حقيقية قديمة بدك ترحّليها).
+  const TENANT_SCOPED_TABLES = new Set([
+    'activity_log','audit_log','branch_inventory','branches','capital_transactions',
+    'cash_shifts','categories','composite_fixed','composite_groups','composite_options',
+    'customer_complaints','customer_ratings','customers','daily_tasks','delivery_platforms',
+    'devices','discount_codes','employee_deductions','employee_ratings','employee_rewards',
+    'expenses','fixed_costs','held_tickets','hr_advance_requests','hr_advances',
+    'hr_attendance','hr_breaks','hr_clockin_requests','hr_device_requests',
+    'hr_employee_locations','hr_geofence_excursions','hr_locations','hr_month_closures',
+    'hr_time_logs','ingredients','inventory_audits','inventory_movements',
+    'manufacturing_recipe_items','manufacturing_recipes','manufacturing_runs','meal_names',
+    'menu_items','order_items','orders','point_redemptions','print_queue','print_requests',
+    'purchase_items','purchase_orders','purchases','recipe_items','recipes','roles',
+    'scheduled_discounts','shift_adjustments','shift_breaks','shift_open_requests',
+    'spot_check_audits','staff','staff_advances','staff_messages','stock_adjustments',
+    'stock_transfers','supplier_ingredients','supplier_payments','suppliers',
+    'terms_signatures','treasury_transactions','violations','waste_log',
+  ]);
+  (function installTenantIsolation(){
+    const origFrom = db.from.bind(db);
+    db.from = function(table){
+      const qb = origFrom(table);
+      if(!TENANT || !TENANT_SCOPED_TABLES.has(table)) return qb;
+      const tid = TENANT.id;
+      const origSelect = qb.select.bind(qb);
+      const origInsert = qb.insert.bind(qb);
+      const origUpdate = qb.update.bind(qb);
+      const origUpsert = qb.upsert.bind(qb);
+      const origDelete = qb.delete.bind(qb);
+      qb.select = function(...args){ return origSelect(...args).eq('tenant_id', tid); };
+      qb.insert = function(records, opts){
+        const stamped = Array.isArray(records) ? records.map(r=>({...r, tenant_id: tid})) : {...records, tenant_id: tid};
+        return origInsert(stamped, opts);
+      };
+      qb.update = function(...args){ return origUpdate(...args).eq('tenant_id', tid); };
+      qb.upsert = function(records, opts){
+        const stamped = Array.isArray(records) ? records.map(r=>({...r, tenant_id: tid})) : {...records, tenant_id: tid};
+        return origUpsert(stamped, opts);
+      };
+      qb.delete = function(...args){ return origDelete(...args).eq('tenant_id', tid); };
+      return qb;
+    };
+  })();
+
   // 🔒 بوابة الكتابة المحمية — لأخطر 4 جداول (مصاري، سلف). بدل ما نتواصل مباشرة مع قاعدة
   // البيانات، بنمر عبر سيرفر صغير (Edge Function) هو الوحيد يلي عنده صلاحية الكتابة الحقيقية.
   // نفس شكل رد Supabase العادي {data, error} عشان الكود الحالي يستمر يشتغل بدون تغيير كبير.
@@ -1969,7 +2019,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-06';
+  const APP_VERSION = '2026-09-01-07';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
