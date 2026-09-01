@@ -296,7 +296,7 @@
 <!-- ============ اختيار فرع الجهاز (مرة وحدة لهاد الجهاز) ============ -->
 <div id="deviceBranchScreen" class="hidden">
   <div class="login-card">
-    <div class="login-logo">S<span>J</span>S</div>
+    <div class="login-logo">Saber<span>ERP</span></div>
     <div class="login-sub">🖥️ هاد الجهاز — أي فرع يتبع؟</div>
     <div style="color:var(--muted);font-size:.82rem;font-weight:700;margin-bottom:16px">اختره مرة وحدة بس — بيتحدد فيه الطباعة تلقائيًا لهاد الجهاز بغض النظر مين بيسجل دخول</div>
     <select id="deviceBranchSelect" style="width:100%;padding:14px;border:2px solid var(--maroon);border-radius:12px;font-size:1.05rem;font-weight:800;margin-bottom:16px">
@@ -389,7 +389,7 @@
 </div>
 
 <!-- ============ التطبيق ============ -->
-<div id="loadingOverlay" style="position:fixed;inset:0;background:var(--cream);z-index:150;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--maroon);font-size:1.2rem">S<span style="color:var(--red)">J</span>S...</div>
+<div id="loadingOverlay" style="position:fixed;inset:0;background:var(--cream);z-index:150;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--maroon);font-size:1.2rem">Saber<span style="color:var(--red)">ERP</span>...</div>
 <div id="app" class="hidden">
   <header>
     <div class="brand">S<em>J</em>S <span style="font-weight:600;font-size:.85rem">POS</span></div>
@@ -688,8 +688,8 @@
 
 <script>
   /* ================= الإعداد ================= */
- const SB_URL = "https://btevhnfelgvupwluljfl.supabase.co";
-const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
+  const SB_URL = "https://hwucmlixvqouvwvqeshh.supabase.co";
+  const SB_KEY = "sb_publishable_jkJOc57GfQXVN1HHwI_2cA_lziCOInd";
   const CURRENCY = "د.أ";
   let LATE_MIN = 20;       // قابلة للتعديل من الإعدادات
   let READY_WAIT_MIN = 7;  // قابلة للتعديل من الإعدادات
@@ -1723,7 +1723,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-08-13-01';
+  const APP_VERSION = '2026-09-01-02';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -3631,7 +3631,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
       'modern': `
         <div style="font-family:'Cairo',sans-serif;padding:12px;max-width:300px;background:linear-gradient(135deg,#fff,#f8f4f0);border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.1)">
           <div style="text-align:center;border-bottom:2px solid var(--red);padding-bottom:8px">
-            <h2 style="color:var(--red);margin:0">🍔 SJS Snack</h2>
+            <h2 style="color:var(--red);margin:0">🍔 ${bizName()}</h2>
             <p style="margin:4px 0;font-size:12px;color:#666">${br ? br.name_ar : ''}</p>
           </div>
           <div style="padding:8px 0">
@@ -3670,7 +3670,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
       'classic': `
         <div style="font-family:'Courier New',monospace;padding:10px;max-width:300px;border:2px solid #000;background:#fff">
           <div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:6px">
-            <h2 style="margin:0">SJS SNACK</h2>
+            <h2 style="margin:0">${bizName().toUpperCase()}</h2>
             <p style="margin:2px 0;font-size:11px">${br ? br.name_ar : ''}</p>
           </div>
           <table style="width:100%;font-size:12px">
@@ -3707,7 +3707,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
       `,
       'minimal': `
         <div style="font-family:sans-serif;padding:8px;max-width:280px;background:#fafafa;border:1px solid #ddd">
-          <div style="text-align:center;font-size:16px;font-weight:900">SJS</div>
+          <div style="text-align:center;font-size:16px;font-weight:900">${bizName()}</div>
           <div style="text-align:center;font-size:10px;color:#666">${br ? br.name_ar : ''}</div>
           <div style="font-size:11px;padding:4px 0;border-bottom:1px solid #ddd">
             #${ord.order_number} | ${new Date(ord.created_at).toLocaleString('ar-JO')}
@@ -3827,7 +3827,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
     }
     text += '═'.repeat(32) + '\n';
     text += '  شكراً لزيارتكم  \n';
-    text += '  SJS 🍔  \n';
+    text += '  '+bizName()+' 🍔  \n';
     if(ord.__isReprint){
       text += '─'.repeat(32) + '\n';
       text += `أُعيدت الطباعة بواسطة: ${ord.__reprintBy||'—'}\n`;
@@ -3953,7 +3953,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
       const sep = /^[═─-]{5,}/.test(line.trim());
       if(sep){ visualLines.push({isSep:true}); return; }
       const big = /SABER|إجمالي|تقرير/.test(line);
-      const centered = /SABER|شكرًا|توقيع|طلب #|SJS/.test(line);
+      const centered = /SABER|شكرًا|توقيع|طلب #/.test(line) || line.includes(bizName());
       mctx.font = "bold " + Math.round((big?30:26)*scale) + "px 'Cairo', Arial, sans-serif";
       if(mctx.measureText(line).width <= maxW){
         visualLines.push({text:line, isBig:big, isCentered:centered});
@@ -4236,7 +4236,7 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
     const o = DAY.find(x=>x.id===id); if(!o) return;
     const num = (SETTINGS.delivery_whatsapp||'').replace(/\D/g,'');
     const items = (o.order_items||[]).map(l=>l.quantity+'× '+l.item_name).join('\n');
-    const msg = `🛵 *طلب توصيل SJS*\nفاتورة: #${o.order_number}\nالفرع: ${o.branches?.name_ar||''}\n——————\nالعميل: ${o.customers?.name||''}\nالهاتف: ${o.customers?.phone||''}\nالعنوان: ${o.customers?.address||''}\n——————\n${items}\n——————\nالإجمالي: ${fmt(o.total)} ${CURRENCY}`;
+    const msg = `🛵 *طلب توصيل ${bizName()}*\nفاتورة: #${o.order_number}\nالفرع: ${o.branches?.name_ar||''}\n——————\nالعميل: ${o.customers?.name||''}\nالهاتف: ${o.customers?.phone||''}\nالعنوان: ${o.customers?.address||''}\n——————\n${items}\n——————\nالإجمالي: ${fmt(o.total)} ${CURRENCY}`;
     const url = num ? `https://wa.me/${num}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
     window.open(url, '_blank');
   }
@@ -6151,6 +6151,12 @@ const SB_KEY = "sb_publishable_DEmy8N-36Yxm94nO6c10Mg_5DDXhn5H";
     platforms:'platforms_view', empmeals:'empmeals_view', topcust:'topcust_view', waste:'waste_log', suppliers:'purchases_view',
   };
   function canAccessAdminTab(tabKey){
+    // 🏢 تعدد المطاعم: لو هاد المطعم عنده باقة ميزات محدّدة من لوحة المنصة (enabled_features)،
+    // الشاشة لازم تكون ضمن الباقة أصلًا — حتى لو مالك المطعم نفسه معه كل الصلاحيات. هاي سقف
+    // من عندنا (Saber ERP)، مش من صلاحيات الموظفين الداخلية.
+    if(TENANT && Array.isArray(TENANT.enabled_features) && !TENANT.enabled_features.includes(tabKey)){
+      return false;
+    }
     // 🔒 استثناء دائم: شاشة "الأدوار" للمالك الحقيقي بس، حتى لو الدور المخصص معاه "كل صلاحيات المالك" —
     // وإلا صار ممكن يعدّل حاله صلاحيات أكتر وأكتر بنفسه بدون حدود.
     if(tabKey==='roles' && (!ME || ME.role!=='admin')) return false;
