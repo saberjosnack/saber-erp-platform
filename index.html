@@ -920,7 +920,7 @@
   const IS_PLATFORM_ADMIN_MODE = new URLSearchParams(location.search).get('admin') === '1';
   // 🔒 رمز دخول المنصة — 8 أرقام (أقوى بكثير من الـ4 أرقام العادية لموظفي أي مطعم). غيّريه لرقم
   // من عندك قبل ما تنشري الرابط لأي حدا، وخليه رقم ما حدا يقدر يخمّنه (مش تاريخ ميلاد أو 12345678).
-  const PLATFORM_ADMIN_PIN = "84027193";
+  const PLATFORM_ADMIN_PIN = "12319375";
   const TENANT_GATE = IS_PLATFORM_ADMIN_MODE
     ? Promise.resolve().then(()=>{
         document.getElementById('loadingOverlay')?.remove();
