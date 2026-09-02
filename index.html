@@ -2291,7 +2291,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-12';
+  const APP_VERSION = '2026-09-01-13';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2467,6 +2467,10 @@
     // ساعات)، بيضل شغّال بصلاحياته القديمة كأنه مافي شي صار. هلق منتحقق بشكل دوري (كل 90 ثانية)
     // من قاعدة البيانات مباشرة، ولو تعطّل فعليًا، منسجّل خروجه تلقائيًا بدون ما ينتظر يعمل تحديث.
     setInterval(checkStillActiveAndSynced, 90000);
+    // 🏢 نفس المبدأ، بس لحالة المطعم نفسه (لا لموظف واحد) — لو المالكة عطّلت المطعم من لوحة المنصة،
+    // أي جلسة كاشير مفتوحة فيه (حتى لو تاب مفتوح من الصبح) لازم توقف خلال 90 ثانية كحد أقصى،
+    // بدون ما تستنى حدا يعمل Refresh يدوي.
+    if(TENANT) setInterval(checkTenantStillActive, 90000);
     // 🔄 السستم كله يضل لايف — تحديث خلفي صامت كل دقيقة ونص للأصناف/الأسعار/التوفر/التصنيفات/
     // الفروع/الإعدادات/الصلاحيات، بدون ما حدا يحتاج يعمل تحديث صفحة أو أي إجراء يدوي إطلاقًا.
     setInterval(silentDataRefresh, 90000);
@@ -2475,6 +2479,19 @@
     // "إيقاف عام") — خلال 15 ثانية كحد أقصى على كل الأجهزة، بدون أي تحديث صفحة يدوي من الكاشير.
     setInterval(recomputeActiveScheduledDiscount, 15000);
     setInterval(loadScheduledDiscountsList, 15000);
+  }
+  async function checkTenantStillActive(){
+    if(!TENANT || !TENANT.id) return;
+    try{
+      const { data, error } = await db.from('tenants').select('is_active, subscription_expiry').eq('id', TENANT.id).limit(1);
+      if(error || !data || !data.length) return; // فشل شبكة مؤقت — ما بنقطع جلسة شغالة أبدًا هون
+      const today = new Date().toISOString().split('T')[0];
+      const expired = data[0].subscription_expiry && data[0].subscription_expiry < today;
+      if(data[0].is_active === false || expired){
+        toast('⛔ تم إيقاف/انتهاء اشتراك المطعم — بيتم تسجيل الخروج الآن');
+        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); location.reload(); }, 1500);
+      }
+    }catch(e){ /* صمت تام — أي خطأ شبكة هون ما لازم يقطع جلسة شغالة */ }
   }
   async function checkStillActiveAndSynced(){
     if(!ME || !ME.id) return;
