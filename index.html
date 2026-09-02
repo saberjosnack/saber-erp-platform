@@ -2291,7 +2291,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-14';
+  const APP_VERSION = '2026-09-01-15';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2558,23 +2558,30 @@
     }
   };
 
-  const saved = sessionStorage.getItem('sjs_me');
-  if(localStorage.getItem('sjs_device_branch_id') && saved){
-    try{ ME = JSON.parse(saved); enterApp(); }catch(e){ sessionStorage.removeItem('sjs_me'); ME = null; }
-    // ⚠️ إصلاح: النسخة المحفوظة بالجهاز ممكن تكون قديمة (صلاحيات اتغيّرت من المدير بعد آخر تسجيل دخول)
-    // فنعيد جلب بيانات الموظف الحقيقية من القاعدة بالخلفية ونحدّث الصلاحيات المعروضة، بدون ما ننتظر تسجيل خروج/دخول.
-    // مفصولة تمامًا عن الـ try/catch فوق — أي فشل بالشبكة هون (نت ضعيف مثلًا) ما لازم يمسح جلسة شغالة أو يطلع المستخدم عالشاشة الرئيسية.
-    if(ME && ME.id){
-      db.from('staff').select('*, branches(name_ar)').eq('id', ME.id).limit(1).then(async ({data,error})=>{
-        if(error || !data || !data.length) return; // فشل الشبكة أو أي خطأ — نتجاهل ونضل عالجلسة المحفوظة، ما بنعمل logout أبدًا هون
-        if(data[0].is_active === false){ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); return; } // بس لو صراحة معطّل
-        ME = data[0];
-        sessionStorage.setItem('sjs_me', JSON.stringify(ME));
-        await loadCustomRoles();
-        applyRoles();
-      }).catch(()=>{});
+  // ⚠️ إصلاح حرج: هاد الكود كان يشتغل فورًا (متزامن) قبل ما ننتظر التأكد من حالة المطعم (TENANT_GATE)
+  // — يعني لو المطعم موقّف بس الجهاز عنده جلسة محفوظة من قبل، كان يرجع يفتح النظام مباشرة متجاهلًا
+  // الإيقاف بالكامل! هلق منستنى TENANT_GATE تخلص أول (ونجاحها أصلًا معناه المطعم فعّال) قبل ما نحاول
+  // نستعيد أي جلسة سابقة. لو TENANT_GATE فشلت (موقّف/منتهي)، هاد الكود ما بيتنفذ إطلاقًا (مقصود).
+  TENANT_GATE.then(()=>{
+    const saved = sessionStorage.getItem('sjs_me');
+    if(localStorage.getItem('sjs_device_branch_id') && saved){
+      try{ ME = JSON.parse(saved); enterApp(); }catch(e){ sessionStorage.removeItem('sjs_me'); ME = null; }
+      // ⚠️ إصلاح: النسخة المحفوظة بالجهاز ممكن تكون قديمة (صلاحيات اتغيّرت من المدير بعد آخر تسجيل دخول)
+      // فنعيد جلب بيانات الموظف الحقيقية من القاعدة بالخلفية ونحدّث الصلاحيات المعروضة، بدون ما ننتظر تسجيل خروج/دخول.
+      // مفصولة تمامًا عن الـ try/catch فوق — أي فشل بالشبكة هون (نت ضعيف مثلًا) ما لازم يمسح جلسة شغالة أو يطلع المستخدم عالشاشة الرئيسية.
+      if(ME && ME.id){
+        db.from('staff').select('*, branches(name_ar)').eq('id', ME.id).limit(1).then(async ({data,error})=>{
+          if(error || !data || !data.length) return; // فشل الشبكة أو أي خطأ — نتجاهل ونضل عالجلسة المحفوظة، ما بنعمل logout أبدًا هون
+          if(data[0].is_active === false){ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); return; } // بس لو صراحة معطّل
+          ME = data[0];
+          sessionStorage.setItem('sjs_me', JSON.stringify(ME));
+          await loadCustomRoles();
+          applyRoles();
+        }).catch(()=>{});
+      }
     }
-  }
+  });
+
 
   // ⚠️ إصلاح حرج: شاشة التحميل لازم تنشال دايمًا بسرعة بغض النظر صار تسجيل دخول تلقائي أو لأ —
   // وإلا أي حدا لسا ما سجّل دخول (معظم الحالات) بيضل عالق خلفها للأبد وما بيشوف شاشة الـPIN إطلاقًا
