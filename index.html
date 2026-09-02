@@ -983,23 +983,12 @@
                 <button onclick="paTenantForm('${t.id}')" style="flex:1;background:#e8d9a0;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">✏️ تعديل</button>
                 <button onclick="paAddCredits('${t.id}')" style="flex:1;background:#c8e6c9;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">＋ رصيد</button>
                 <button onclick="paToggleActive('${t.id}',${t.is_active===false})" style="flex:1;background:${t.is_active===false?'#c8e6c9':'#ffcdd2'};padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">${t.is_active===false?'▶️ تفعيل':'⏸️ إيقاف'}</button>
-                <button onclick="paHideTenant('${t.id}','${esc2(t.code||'')}')" style="flex:1;background:#3a3a3a;color:#fff;padding:9px 10px;border-radius:8px;font-weight:800;font-size:.85rem">🙈 إخفاء</button>
               </div>
             </div>
           </div>`;
         }).join('') || '<div style="grid-column:1/-1;padding:40px;text-align:center;color:#8B7A6B;font-size:1.05rem;background:#fff;border-radius:16px">ما في مطاعم مضافة بعد</div>'}
       </div>`;
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
-  }
-  async function paHideTenant(id, oldCode){
-    if(!confirm('هيك رابط المطعم الحالي ("?r='+oldCode+'") رح يوقف يشتغل نهائيًا، وحتى لو صاحب المطعم يجرب يفتحه رح يطلعله "مطعم غير موجود".\n\nكمان بيتوقف فعليًا (زي زر إيقاف) عشان أي جهاز شغال عندهم هلق يتوقف خلال ثواني، مش لما يعملوا خروج بس.\n\nاكتبي/احفظي الكود القديم ("'+oldCode+'") قبل ما تكملي — هو الوحيد يلي بيرجّع الرابط يشتغل لاحقًا (من زر تعديل).\n\nأكمل الإخفاء؟')) return;
-    const dummyCode = 'hidden_' + Math.random().toString(36).slice(2, 10);
-    try{
-      const { error } = await db.from('tenants').update({ code: dummyCode, is_active: false }).eq('id', id);
-      if(error){ alert('✗ '+error.message); return; }
-      alert('✓ اتخفى وتوقف. الكود القديم كان: '+oldCode+'\nلو بدك ترجعيه، افتحي "تعديل"، حطي أي كود جديد، وفعّليه من زر "تفعيل".');
-      paLoadTenants();
-    }catch(e){ alert('✗ '+e.message); }
   }
   function paEnterTenant(code){
     if(!code || !PA_SESSION_PIN){ alert('⚠️ ما فيه كود مطعم أو جلسة مش صالحة'); return; }
@@ -2338,7 +2327,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-18';
+  const APP_VERSION = '2026-09-01-20';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2528,12 +2517,43 @@
     setInterval(loadScheduledDiscountsList, 15000);
   }
   function showSuspensionBanner(){
-    if(document.getElementById('sbSuspendBanner')) return; // مضاف أصلًا، ما نكرره
-    const bar = document.createElement('div');
-    bar.id = 'sbSuspendBanner';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#7a0d0d;color:#fff;padding:10px 16px;text-align:center;font-weight:900;font-size:.95rem;box-shadow:0 2px 10px rgba(0,0,0,.4)';
-    bar.innerHTML = '⛔ الحساب موقّف — النظام رح يقفل خلال ثواني. تواصلوا فورًا: <a href="tel:0790807761" style="color:#fff;text-decoration:underline">0790807761</a>';
-    document.body.appendChild(bar);
+    if(document.getElementById('sbFullBlock')) return; // مضاف أصلًا، ما نكرره
+    // 🚨 حاجب كامل ثابت فوق الصفحة الحالية بالضبط (بدون Reload ولا تغيير رابط) — يضل المستخدم بنفس
+    // الصفحة، بس مقفولة تمامًا فوقها شاشة حمرا كبيرة تمنع أي تفاعل مع أي شي تحتها.
+    const ov = document.createElement('div');
+    ov.id = 'sbFullBlock';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#7a0d0d;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `<div style="text-align:center;max-width:400px;font-family:inherit;animation:sbShake2 .4s ease-in-out 3">
+      <style>
+        @keyframes sbShake2{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+        @keyframes sbPulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+      </style>
+      <div style="font-size:3.4rem;margin-bottom:10px;animation:sbPulse2 1s ease-in-out infinite">⛔</div>
+      <div style="font-weight:900;font-size:1.35rem;color:#fff;margin-bottom:10px">تم إيقاف الحساب</div>
+      <div style="color:#ffd9d9;font-weight:800;font-size:.95rem;line-height:1.7;margin-bottom:18px">اشتراككم متوقّف أو منتهي. النظام موقوف بالكامل ولا يمكن استخدامه لحد ما يتم التجديد.</div>
+      <div style="background:#fff;border-radius:14px;padding:16px">
+        <div style="font-weight:900;color:#7a0d0d;font-size:.9rem;margin-bottom:8px">📞 تواصلوا فورًا للتجديد</div>
+        <a href="tel:0790807761" style="display:block;background:#7a0d0d;color:#fff;font-weight:900;font-size:1.15rem;padding:14px;border-radius:10px;text-decoration:none">اتصلي: 0790807761</a>
+      </div>
+    </div>`;
+    document.body.appendChild(ov);
+    // 🔊 صوت تنبيه مزعج (مركّب بالكود) — بيتكرر كل ٤ ثواني لمدة دقيقة
+    try{
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      function beep(){
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'square'; o.frequency.setValueAtTime(880, ctx.currentTime);
+        o.frequency.setValueAtTime(660, ctx.currentTime+0.15);
+        g.gain.setValueAtTime(0.18, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.35);
+        o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.35);
+      }
+      beep();
+      const si = setInterval(beep, 4000);
+      setTimeout(()=>clearInterval(si), 60000);
+    }catch(e){}
+    // نمسح الجلسة بالخلفية (بدون أي تنقّل/Reload) — عشان لو حدا سكّر التاب وفتحه من جديد ما يرجع يدخل
+    sessionStorage.removeItem('sjs_me');
   }
   async function checkTenantStillActive(){
     if(!TENANT || !TENANT.id) return;
@@ -2543,10 +2563,8 @@
       const today = new Date().toISOString().split('T')[0];
       const expired = data[0].subscription_expiry && data[0].subscription_expiry < today;
       if(data[0].is_active === false || expired){
-        // 🚨 بانر فوري ظاهر لأي موظف شغال هلق (مش بس المدير) — قبل ما نسجّل خروجه فعليًا
+        // 🚨 حاجب كامل فوري — بنفس الصفحة، بدون أي تنقّل أو خروج
         showSuspensionBanner();
-        toast('⛔ تم إيقاف/انتهاء اشتراك المطعم — بيتم تسجيل الخروج الآن');
-        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); }, 4000);
       }
     }catch(e){ /* صمت تام — أي خطأ شبكة هون ما لازم يقطع جلسة شغالة */ }
   }
