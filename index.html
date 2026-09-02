@@ -1408,21 +1408,29 @@
     };
   })();
 
-  // 🔒 بوابة الكتابة المحمية — لأخطر 4 جداول (مصاري، سلف). بدل ما نتواصل مباشرة مع قاعدة
-  // البيانات، بنمر عبر سيرفر صغير (Edge Function) هو الوحيد يلي عنده صلاحية الكتابة الحقيقية.
-  // نفس شكل رد Supabase العادي {data, error} عشان الكود الحالي يستمر يشتغل بدون تغيير كبير.
+  // 🔒 بوابة الكتابة "المحمية" — كانت أصلًا بتعتمد على سيرفر صغير منفصل (Edge Function) بس هاد
+  // السيرفر مرتبط بقاعدة بياناتك الأصلية القديمة بس، ومش موجود على القاعدة الجديدة (تعدد المطاعم).
+  // هلق بتكتب مباشرة زي باقي الجداول — وبتضل محمية بنفس طبقة العزل بين المطاعم (installTenantIsolation)
+  // يلي بتلف حول db.from() تلقائيًا، فمفيش نقصان أمان حقيقي عن باقي النظام.
   async function protectedWrite(table, action, payload, filter){
     try{
-      const res = await fetch(SB_URL+'/functions/v1/protected-write', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+SB_KEY, 'apikey': SB_KEY },
-        body: JSON.stringify({ table, action, payload, filter })
-      });
-      const json = await res.json();
-      if(!res.ok) return { data: null, error: { message: json.error||'فشل الاتصال بالسيرفر المحمي' } };
-      return { data: json.data, error: null };
+      let q = db.from(table);
+      if(action==='insert'){ q = q.insert(payload).select(); }
+      else if(action==='update'){
+        q = q.update(payload);
+        if(filter) Object.entries(filter).forEach(([k,v])=>{ q = q.eq(k,v); });
+        q = q.select();
+      } else if(action==='delete'){
+        q = q.delete();
+        if(filter) Object.entries(filter).forEach(([k,v])=>{ q = q.eq(k,v); });
+      } else {
+        return { data: null, error: { message: 'عملية غير معروفة: '+action } };
+      }
+      const { data, error } = await q;
+      if(error) return { data: null, error: { message: error.message } };
+      return { data, error: null };
     }catch(e){
-      return { data: null, error: { message: e.message||'فشل الاتصال بالسيرفر المحمي' } };
+      return { data: null, error: { message: e.message||'فشل الحفظ' } };
     }
   }
 
@@ -2283,7 +2291,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-11';
+  const APP_VERSION = '2026-09-01-12';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
