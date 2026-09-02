@@ -2291,7 +2291,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-13';
+  const APP_VERSION = '2026-09-01-14';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2489,7 +2489,7 @@
       const expired = data[0].subscription_expiry && data[0].subscription_expiry < today;
       if(data[0].is_active === false || expired){
         toast('⛔ تم إيقاف/انتهاء اشتراك المطعم — بيتم تسجيل الخروج الآن');
-        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); location.reload(); }, 1500);
+        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); }, 1500);
       }
     }catch(e){ /* صمت تام — أي خطأ شبكة هون ما لازم يقطع جلسة شغالة */ }
   }
@@ -2500,7 +2500,7 @@
       if(error || !data || !data.length) return; // فشل شبكة مؤقت — ما بنعمل logout أبدًا هون، منحاول تاني بعد 90 ثانية
       if(data[0].is_active === false){
         toast('⛔ تم إيقاف حسابك من الإدارة — بيتم تسجيل خروجك الآن');
-        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); location.reload(); }, 1500);
+        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); }, 1500);
       }
     }catch(e){ /* صمت تام — أي خطأ شبكة هون ما لازم يقطع جلسة شغالة */ }
   }
@@ -2509,7 +2509,12 @@
     if (shiftCheckInterval) clearInterval(shiftCheckInterval);
     if(ME) try{ await logActivity('logout', 'تسجيل خروج'); }catch(e){}
     sessionStorage.removeItem('sjs_me');
-    location.reload();
+    // 🔧 لو دخلتي عن طريق زر "ادخل" من لوحة المنصة (رابط فيه paEnter=...)، لازم نشيله من الرابط
+    // نفسه وقت الخروج — وإلا أول ما تنعمل Reload، نفس رمز الدخول التلقائي رح يسجّلك من جديد فورًا
+    // وكأنه الخروج ما صار (تحديدًا لأنه location.reload() بيرجّع نفس الرابط بالظبط).
+    const url = new URL(location.href);
+    url.searchParams.delete('paEnter');
+    location.href = url.toString();
   };
 
   /* ---- فرع الجهاز (ثابت لهاد الجهاز، مستقل عن مين بيسجل دخول) ---- */
@@ -2562,7 +2567,7 @@
     if(ME && ME.id){
       db.from('staff').select('*, branches(name_ar)').eq('id', ME.id).limit(1).then(async ({data,error})=>{
         if(error || !data || !data.length) return; // فشل الشبكة أو أي خطأ — نتجاهل ونضل عالجلسة المحفوظة، ما بنعمل logout أبدًا هون
-        if(data[0].is_active === false){ sessionStorage.removeItem('sjs_me'); location.reload(); return; } // بس لو صراحة معطّل
+        if(data[0].is_active === false){ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); return; } // بس لو صراحة معطّل
         ME = data[0];
         sessionStorage.setItem('sjs_me', JSON.stringify(ME));
         await loadCustomRoles();
