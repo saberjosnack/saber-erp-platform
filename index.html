@@ -992,12 +992,12 @@
     }catch(e){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+e.message+'</div>'; }
   }
   async function paHideTenant(id, oldCode){
-    if(!confirm('هيك رابط المطعم الحالي ("?r='+oldCode+'") رح يوقف يشتغل نهائيًا، وحتى لو صاحب المطعم يجرب يفتحه رح يطلعله "مطعم غير موجود".\n\nاكتبي/احفظي الكود القديم ("'+oldCode+'") قبل ما تكملي — هو الوحيد يلي بيرجّع الرابط يشتغل لاحقًا (من زر تعديل).\n\nأكمل الإخفاء؟')) return;
+    if(!confirm('هيك رابط المطعم الحالي ("?r='+oldCode+'") رح يوقف يشتغل نهائيًا، وحتى لو صاحب المطعم يجرب يفتحه رح يطلعله "مطعم غير موجود".\n\nكمان بيتوقف فعليًا (زي زر إيقاف) عشان أي جهاز شغال عندهم هلق يتوقف خلال ثواني، مش لما يعملوا خروج بس.\n\nاكتبي/احفظي الكود القديم ("'+oldCode+'") قبل ما تكملي — هو الوحيد يلي بيرجّع الرابط يشتغل لاحقًا (من زر تعديل).\n\nأكمل الإخفاء؟')) return;
     const dummyCode = 'hidden_' + Math.random().toString(36).slice(2, 10);
     try{
-      const { error } = await db.from('tenants').update({ code: dummyCode }).eq('id', id);
+      const { error } = await db.from('tenants').update({ code: dummyCode, is_active: false }).eq('id', id);
       if(error){ alert('✗ '+error.message); return; }
-      alert('✓ اتخفى. الكود القديم كان: '+oldCode+'\nلو بدك ترجعيه، افتحي "تعديل" وحطي أي كود جديد (حتى لو نفس القديم).');
+      alert('✓ اتخفى وتوقف. الكود القديم كان: '+oldCode+'\nلو بدك ترجعيه، افتحي "تعديل"، حطي أي كود جديد، وفعّليه من زر "تفعيل".');
       paLoadTenants();
     }catch(e){ alert('✗ '+e.message); }
   }
@@ -2338,7 +2338,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-16';
+  const APP_VERSION = '2026-09-01-17';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2517,7 +2517,7 @@
     // 🏢 نفس المبدأ، بس لحالة المطعم نفسه (لا لموظف واحد) — لو المالكة عطّلت المطعم من لوحة المنصة،
     // أي جلسة كاشير مفتوحة فيه (حتى لو تاب مفتوح من الصبح) لازم توقف خلال 90 ثانية كحد أقصى،
     // بدون ما تستنى حدا يعمل Refresh يدوي.
-    if(TENANT) setInterval(checkTenantStillActive, 90000);
+    if(TENANT){ checkTenantStillActive(); setInterval(checkTenantStillActive, 20000); }
     // 🔄 السستم كله يضل لايف — تحديث خلفي صامت كل دقيقة ونص للأصناف/الأسعار/التوفر/التصنيفات/
     // الفروع/الإعدادات/الصلاحيات، بدون ما حدا يحتاج يعمل تحديث صفحة أو أي إجراء يدوي إطلاقًا.
     setInterval(silentDataRefresh, 90000);
@@ -2527,6 +2527,14 @@
     setInterval(recomputeActiveScheduledDiscount, 15000);
     setInterval(loadScheduledDiscountsList, 15000);
   }
+  function showSuspensionBanner(){
+    if(document.getElementById('sbSuspendBanner')) return; // مضاف أصلًا، ما نكرره
+    const bar = document.createElement('div');
+    bar.id = 'sbSuspendBanner';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#7a0d0d;color:#fff;padding:10px 16px;text-align:center;font-weight:900;font-size:.95rem;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+    bar.innerHTML = '⛔ الحساب موقّف — النظام رح يقفل خلال ثواني. تواصلوا فورًا: <a href="tel:0790807761" style="color:#fff;text-decoration:underline">0790807761</a>';
+    document.body.appendChild(bar);
+  }
   async function checkTenantStillActive(){
     if(!TENANT || !TENANT.id) return;
     try{
@@ -2535,8 +2543,10 @@
       const today = new Date().toISOString().split('T')[0];
       const expired = data[0].subscription_expiry && data[0].subscription_expiry < today;
       if(data[0].is_active === false || expired){
+        // 🚨 بانر فوري ظاهر لأي موظف شغال هلق (مش بس المدير) — قبل ما نسجّل خروجه فعليًا
+        showSuspensionBanner();
         toast('⛔ تم إيقاف/انتهاء اشتراك المطعم — بيتم تسجيل الخروج الآن');
-        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); }, 1500);
+        setTimeout(()=>{ sessionStorage.removeItem('sjs_me'); const _u=new URL(location.href); _u.searchParams.delete('paEnter'); location.href=_u.toString(); }, 4000);
       }
     }catch(e){ /* صمت تام — أي خطأ شبكة هون ما لازم يقطع جلسة شغالة */ }
   }
