@@ -2327,7 +2327,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-21';
+  const APP_VERSION = '2026-09-01-22';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2645,6 +2645,7 @@
   // (?admin=1)، لأنه TENANT بتضل null هناك، وأي محاولة استعادة جلسة قديمة كانت بتكسر الصفحة
   // بأخطاء كتير (checkShift، checkOverdue، checkUnreadMessages... كلهم بيفترضوا وجود مطعم/فرع).
   if(!IS_PLATFORM_ADMIN_MODE) TENANT_GATE.then(()=>{
+    if(window.__tenantBlocked) return; // 🐛 نفس الإصلاح — ما نستعيد أي جلسة لو المطعم موقّف
     const saved = sessionStorage.getItem('sjs_me');
     if(localStorage.getItem('sjs_device_branch_id') && saved){
       try{ ME = JSON.parse(saved); enterApp(); }catch(e){ sessionStorage.removeItem('sjs_me'); ME = null; }
@@ -2670,6 +2671,11 @@
   // 🔒 بس هلق: ما بنشيلها إلا بعد ما نتأكد إنه رابط المطعم صحيح ومفعّل — TENANT_GATE (فوق) هي يلي
   // بتقرر: لو فشلت، شاشة التحميل بتضل واقفة عالرسالة (مانع فعلي، مش بس تأخير) وما منكمل هالسطر.
   TENANT_GATE.then(()=>{
+    // 🐛 إصلاح حرج: TENANT_GATE بتنجح دايمًا حتى لو المطعم موقّف (لأنها ملفوفة بـ.catch() فوق
+    // عشان الكود العادي ما ينكسر) — يعني هالسطر كان يشتغل ويشيل شاشة "الحساب موقّف" بعد ٤٠٠ ملي
+    // ثانية بس، ويرجّع يكشف شاشة الدخول العادية تحتها وكأنه ما في إيقاف إطلاقًا! هلق منتحقق من
+    // window.__tenantBlocked (المتغيّر يلي بينضبط بالضبط وقت الإيقاف) قبل ما نشيل الشاشة.
+    if(window.__tenantBlocked) return; // المطعم موقّف/منتهي — خليها واقفة عالرسالة للأبد، ما نشيلها أبدًا
     setTimeout(()=>{
       document.getElementById('loadingOverlay')?.remove();
       if(window.__PA_IMPERSONATING && ME){ enterApp(); }
