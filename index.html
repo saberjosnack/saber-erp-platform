@@ -2327,7 +2327,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-01-20';
+  const APP_VERSION = '2026-09-01-21';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2520,10 +2520,14 @@
     if(document.getElementById('sbFullBlock')) return; // مضاف أصلًا، ما نكرره
     // 🚨 حاجب كامل ثابت فوق الصفحة الحالية بالضبط (بدون Reload ولا تغيير رابط) — يضل المستخدم بنفس
     // الصفحة، بس مقفولة تمامًا فوقها شاشة حمرا كبيرة تمنع أي تفاعل مع أي شي تحتها.
+    // 🔧 مصلّحة: منضيفه لعنصر <html> نفسه (documentElement) مباشرة، مش <body> — عشان نتجنب أي
+    // احتمال إنه عنصر تاني بالصفحة عامل "سياق تكديس" (stacking context) خاص فيه بيحبس الـz-index
+    // محليًا ويمنعه يطلع فوق كل شي فعليًا. وكمان بنغيّر عنوان التاب نفسه كتأكيد إضافي واضح.
+    document.title = '⛔ الحساب موقّف!';
     const ov = document.createElement('div');
     ov.id = 'sbFullBlock';
-    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:#7a0d0d;display:flex;align-items:center;justify-content:center;padding:20px';
-    ov.innerHTML = `<div style="text-align:center;max-width:400px;font-family:inherit;animation:sbShake2 .4s ease-in-out 3">
+    ov.setAttribute('style', 'all:initial !important; position:fixed !important; inset:0 !important; z-index:2147483647 !important; background:#7a0d0d !important; display:flex !important; align-items:center !important; justify-content:center !important; padding:20px !important; direction:rtl !important;');
+    ov.innerHTML = `<div style="text-align:center;max-width:400px;font-family:Arial,sans-serif;animation:sbShake2 .4s ease-in-out 3">
       <style>
         @keyframes sbShake2{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
         @keyframes sbPulse2{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
@@ -2536,7 +2540,7 @@
         <a href="tel:0790807761" style="display:block;background:#7a0d0d;color:#fff;font-weight:900;font-size:1.15rem;padding:14px;border-radius:10px;text-decoration:none">اتصلي: 0790807761</a>
       </div>
     </div>`;
-    document.body.appendChild(ov);
+    document.documentElement.appendChild(ov);
     // 🔊 صوت تنبيه مزعج (مركّب بالكود) — بيتكرر كل ٤ ثواني لمدة دقيقة
     try{
       const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -5238,7 +5242,7 @@
           m2: document.getElementById('split_m2')?.value||'cliq',
           amt2: Math.max(0, t.total - (parseFloat(document.getElementById('split_amt1')?.value)||0))
         } : null,
-        status: 'new',
+        status: settingOn('needs_prep_stages') ? 'new' : 'ready',
         shift_id: remoteShiftId || (currentShift ? currentShift.id : null),
         created_by: ME.id,
         created_by_name: ME.full_name,
@@ -6947,6 +6951,13 @@
           <a href="https://wa.me/962${SUPPORT_PHONE.replace(/^0/,'')}" target="_blank" style="display:inline-block;background:#25D366;color:#fff;padding:10px 20px;border-radius:10px;font-weight:900;text-decoration:none">💬 تواصلي عبر واتساب — ${SUPPORT_PHONE}</a>
         </div>
         <div class="fld"><label>🏪 اسم النشاط (يظهر بكل الفواتير والتقارير والرسائل)</label><input id="f_bizName" value="${esc(SETTINGS.business_name||'')}" placeholder="مثال: مطعم الذوق الرفيع"></div>
+        <div class="fld" style="background:#fff8e6;border-radius:12px;padding:14px 16px;margin-bottom:14px">
+          <label class="chk" style="display:flex;align-items:center;gap:8px;font-weight:900;color:var(--maroon)">
+            <input type="checkbox" id="f_needsPrepStages" ${settingOn('needs_prep_stages')?'checked':''}>
+            🍳 نشاطي يحتاج مراحل تحضير (تحضير → جاهز → تسليم)
+          </label>
+          <div style="font-size:.8rem;color:var(--muted);font-weight:700;margin-top:6px">فعّليها لو مطعم بيطبخ الطلب. ألغيها لو دكان/سناك بيبيع أصناف جاهزة — الطلب بيصير "جاهز" فورًا لحظة البيع بدون خطوات إضافية.</div>
+        </div>
         ${hasCreditsFeature ? `<div class="fld" style="background:${hasOrderCredits()?'#eafbea':'#ffe0e0'};border-radius:12px;padding:14px 16px;margin-bottom:14px">
           <div style="font-weight:900;color:${hasOrderCredits()?'var(--ok)':'var(--red)'}">💳 رصيد الطلبات المتبقي: ${parseFloat(creditsVal).toFixed(0)} طلب</div>
           <div style="font-size:.8rem;color:var(--muted);font-weight:700;margin-top:4px">${hasOrderCredits()?'الرصيد بينخصم واحد تلقائيًا مع كل طلب جديد. لو قرّب يخلص، تواصلي معنا للشحن.':'خلص الرصيد — النظام موقف عن قبول طلبات جديدة لحد ما ينشحن. تواصلي معنا فورًا.'}</div>
@@ -16577,6 +16588,7 @@ const totalCost = WASTE_DATA.reduce((a,w)=>a+(w.quantity*(w.ingredients?.unit_co
     });
     const settings = {
       business_name: document.getElementById('f_bizName')?.value.trim() || '',
+      needs_prep_stages: document.getElementById('f_needsPrepStages')?.checked ?? true,
       ai_invoice_enabled: document.getElementById('f_aiEnabled')?.checked ?? false,
       ai_model: document.getElementById('f_aiModel')?.value || 'claude-sonnet-5',
       hr_portal_show_hours: document.getElementById('f_hrShowHours')?.checked ?? true,
