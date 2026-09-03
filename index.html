@@ -919,14 +919,16 @@
     const box = document.getElementById('paTenantsList');
     if(box) box.innerHTML = '<div style="text-align:center;padding:20px;color:#8B7A6B">⏳ جاري التحميل...</div>';
     try{
-      const [{ data, error }, { data: topupsData }, { data: plansData }] = await Promise.all([
+      const [{ data, error }, { data: topupsData }, { data: plansData, error: plansError }] = await Promise.all([
         db.from('tenants').select('*').order('created_at',{ascending:false}),
         db.from('platform_credit_topups').select('tenant_id, orders_added'),
         db.from('subscription_plans').select('*').eq('is_active', true).order('sort_order'),
       ]);
       if(error){ if(box) box.innerHTML = '<div style="color:red">⚠️ '+error.message+'</div>'; return; }
+      if(plansError) console.error('فشل تحميل الباقات:', plansError.message); // ما نوقف كل الشاشة، بس نسجّل السبب بالـConsole
       window.__PA_TENANTS = data||[];
       window.__PA_PLANS = plansData||[];
+      window.__PA_PLANS_ERROR = plansError ? plansError.message : null;
       const addedByTenant = {};
       (topupsData||[]).forEach(t=>{ addedByTenant[t.tenant_id] = (addedByTenant[t.tenant_id]||0) + parseFloat(t.orders_added||0); });
       const today = new Date().toISOString().split('T')[0];
@@ -1140,7 +1142,9 @@
           <select id="pa_plan" onchange="paApplyPlanPreset()" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px">
             <option value="">— بدون باقة (يدوي بالكامل) —</option>
             ${(window.__PA_PLANS||[]).map(p=>`<option value="${p.id}" ${t&&t.plan_id===p.id?'selected':''}>${esc2(p.name)} — ${p.monthly_price} د.أ/شهر</option>`).join('')}
-          </select></div>
+          </select>
+          ${(!window.__PA_PLANS||!window.__PA_PLANS.length) ? `<div style="color:var(--red,#c0392b);font-weight:800;font-size:.78rem;margin-top:4px">⚠️ ما قدرت أجيب أي باقة من القاعدة${window.__PA_PLANS_ERROR?' — السبب: '+esc2(window.__PA_PLANS_ERROR):' (جدول subscription_plans فاضي أو ما اتعمل)'}</div>` : ''}
+        </div>
         <div><label style="font-weight:700;display:block;margin-bottom:4px">🏷️ نوع النشاط</label>
           <select id="pa_bizType" onchange="paApplyPlanPreset()" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px">
             <option value="">— غير محدد —</option>
@@ -2452,7 +2456,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-02-24';
+  const APP_VERSION = '2026-09-02-25';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
