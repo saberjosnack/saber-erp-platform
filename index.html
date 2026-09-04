@@ -431,7 +431,7 @@
     <section id="v-pos">
       <div class="pos-grid">
         <div>
-          <input class="dfield" id="itemSearch" placeholder="🔍 بحث سريع عن صنف..." style="margin-bottom:8px" oninput="renderItems()">
+          <input class="dfield" id="itemSearch" placeholder="🔍 بحث سريع عن صنف... (أو امسحي باركود)" style="margin-bottom:8px" oninput="renderItems()" onkeydown="if(event.key==='Enter')handleBarcodeEnter()">
           <div class="upsell hidden" id="upsellBox">
             <div class="ttl">💡 اقترح على الزبون:</div>
             <div class="chips" id="upsellChips"></div>
@@ -1174,6 +1174,12 @@
         <div><label style="font-weight:700;display:block;margin-bottom:4px">➕ فروع إضافية (10 د.أ/شهر لكل وحد)</label>
           <input id="pa_extraBranches" type="number" min="0" value="${t&&t.extra_branches?t.extra_branches:0}" onchange="paApplyPlanPreset()" style="width:100%;padding:11px;border:1.5px solid #ccc;border-radius:8px"></div>
       </div>
+      <div class="fld" style="background:#eef6ff;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:900;color:var(--maroon,#4a1010)">
+          <input type="checkbox" id="pa_usesBarcode" ${t&&t.uses_barcode?'checked':''}>
+          🔖 يستخدم نظام الباركود (للسوبرماركت/البقالة — أنتي بتحددي لأي مطعم، مش هو)
+        </label>
+      </div>
       <div id="pa_planPriceNote" style="background:#eef6ff;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-weight:800;color:var(--maroon,#4a1010);font-size:.9rem"></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-weight:900;color:var(--maroon,#4a1010)">🧩 الشاشات المسموحة لهاد المطعم (${ALL_FEATURE_KEYS.length} شاشة)</div>
@@ -1239,6 +1245,7 @@
     const business_type = document.getElementById('pa_bizType')?.value || null;
     const extra_employees = parseInt(document.getElementById('pa_extraStaff')?.value) || 0;
     const extra_branches = parseInt(document.getElementById('pa_extraBranches')?.value) || 0;
+    const uses_barcode = document.getElementById('pa_usesBarcode')?.checked || false;
     const maxBranchesRaw = document.getElementById('pa_maxbranches')?.value.trim();
     const maxStaffRaw = document.getElementById('pa_maxstaff')?.value.trim();
     const max_branches = maxBranchesRaw==='' ? null : parseInt(maxBranchesRaw);
@@ -1248,7 +1255,7 @@
     const checked = [...document.querySelectorAll('.pa-feat-chk:checked')].map(c=>c.dataset.key);
     const enabled_features = checked.length === ALL_FEATURE_KEYS.length ? null : checked;
     if(!name || !code){ alert('⚠️ اكتبي الاسم والكود'); return; }
-    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features, billing_type, logo_url, plan_id, business_type, extra_employees, extra_branches };
+    const rec = { name, subscription_expiry: expiry, max_branches, max_staff, enabled_features, billing_type, logo_url, plan_id, business_type, extra_employees, extra_branches, uses_barcode };
     rec.code = code;
     if(!id){ rec.order_credits_balance = credits; rec.is_active = true; }
     try{
@@ -2456,7 +2463,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-02-25';
+  const APP_VERSION = '2026-09-04-28';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2610,21 +2617,27 @@
     const loadingOv = document.getElementById('loadingOverlay');
     if(loadingOv) loadingOv.remove(); // نشيل شاشة التحميل بس بعد ما الصلاحيات كلها اتطبقت فعليًا
     bootData();
+    // 🛡️ حماية حاسمة: enterApp() ممكن تتنفذ أكتر من مرة بنفس الجلسة (مثلًا وضع "ادخل" من لوحة
+    // المنصة، أو أي مسار تاني بيعيد الدخول) — بدون هالحارس، كل الفحوصات الدورية تحت كانت
+    // تتسجّل من جديد كل مرة وتتضاعف (٢×، ٣×...) بصمت، وهاد استهلاك زيادة حقيقي وغير ضروري
+    // على Supabase بدون أي فايدة — نفس البيانات بترجع، بس بعدد طلبات أكتر بكثير مع الوقت.
+    if(window.__intervalsStarted) return;
+    window.__intervalsStarted = true;
     setInterval(checkOverdue, 30000);
     setInterval(checkReadyAlerts, 30000);
-    setInterval(checkAutoPrintQueue, 8000);
-    setInterval(checkPrintRequests, 8000);
-    setInterval(checkCancelledAlerts, 8000);
+    setInterval(checkAutoPrintQueue, 15000);
+    setInterval(checkPrintRequests, 15000);
+    setInterval(checkCancelledAlerts, 20000);
     setTimeout(checkOverdue, 2000);
     setTimeout(checkReadyAlerts, 3000);
     setTimeout(updateHeldCount, 1500);
     setTimeout(loadPlatformsList, 1000);
     setTimeout(loadEmpMealNames, 1000);
     setTimeout(sendDeviceHeartbeat, 2000);
-    setInterval(sendDeviceHeartbeat, 45000);
-    setInterval(checkDevicesOffline, 60000);
+    setInterval(sendDeviceHeartbeat, 60000);
+    setInterval(checkDevicesOffline, 90000);
     checkUnreadMessages();
-    setInterval(checkUnreadMessages, 12000);
+    setInterval(checkUnreadMessages, 20000);
     checkShift();
     if (shiftCheckInterval) clearInterval(shiftCheckInterval);
     shiftCheckInterval = setInterval(checkShift, 30000);
@@ -2635,15 +2648,15 @@
     // 🏢 نفس المبدأ، بس لحالة المطعم نفسه (لا لموظف واحد) — لو المالكة عطّلت المطعم من لوحة المنصة،
     // أي جلسة كاشير مفتوحة فيه (حتى لو تاب مفتوح من الصبح) لازم توقف خلال 90 ثانية كحد أقصى،
     // بدون ما تستنى حدا يعمل Refresh يدوي.
-    if(TENANT){ checkTenantStillActive(); setInterval(checkTenantStillActive, 20000); }
+    if(TENANT){ checkTenantStillActive(); setInterval(checkTenantStillActive, 30000); }
     // 🔄 السستم كله يضل لايف — تحديث خلفي صامت كل دقيقة ونص للأصناف/الأسعار/التوفر/التصنيفات/
     // الفروع/الإعدادات/الصلاحيات، بدون ما حدا يحتاج يعمل تحديث صفحة أو أي إجراء يدوي إطلاقًا.
     setInterval(silentDataRefresh, 90000);
-    // 🕐 هابي أور / خصومات مجدولة — كل 15 ثانية بتعيد الجلب من القاعدة وتفحص الوقت محليًا، وتحدّث
+    // 🕐 هابي أور / خصومات مجدولة — كل 30 ثانية بتعيد الجلب من القاعدة وتفحص الوقت محليًا، وتحدّث
     // الشاشة تلقائيًا لحظة ما يبلش/يخلص وقته أو لما المالك يوقفه يدويًا من جهاز تاني (act من زر
-    // "إيقاف عام") — خلال 15 ثانية كحد أقصى على كل الأجهزة، بدون أي تحديث صفحة يدوي من الكاشير.
-    setInterval(recomputeActiveScheduledDiscount, 15000);
-    setInterval(loadScheduledDiscountsList, 15000);
+    // "إيقاف عام") — خلال 30 ثانية كحد أقصى على كل الأجهزة، بدون أي تحديث صفحة يدوي من الكاشير.
+    setInterval(recomputeActiveScheduledDiscount, 30000);
+    setInterval(loadScheduledDiscountsList, 30000);
   }
   function showSuspensionBanner(){
     if(document.getElementById('sbFullBlock')) return; // مضاف أصلًا، ما نكرره
@@ -3695,7 +3708,7 @@
   function renderItems(){
     let list = ITEMS.filter(i=>i.is_available);
     const q = (document.getElementById('itemSearch')?.value||'').trim();
-    if(q) list = list.filter(i=>(i.name_ar||'').includes(q));
+    if(q) list = list.filter(i=>(i.name_ar||'').includes(q) || (barcodeEnabled() && (i.barcode||'').includes(q)));
     else if(activeCat!=='__all__') list = list.filter(i=>i.category===activeCat);
     const grid = document.getElementById('itemsGrid');
     if (!grid) return;
@@ -3706,6 +3719,24 @@
         <div class="nm">${esc(i.name_ar)}</div><div class="pr">${fmt(i.price)} ${CURRENCY}</div>
       </div>`).join('')
       : `<div class="empty-note">ما في أصناف بعد.<br>أضفها من ⚙️ الإدارة ← الأصناف</div>`;
+  }
+  // 🔫 سكانر الباركود بيشتغل زي لوحة مفاتيح عادية: بيكتب الرقم بسرعة وبعدها Enter تلقائيًا.
+  // لمّا نضغط Enter وفيه صنف رقمه بالضبط نفس النص المكتوب، منضيفه للسلة فورًا ومنفضي المربع
+  // (بدون ما تحتاج تدوسي عالصنف يدوي) — نفس تجربة أي كاشير سوبرماركت عادي.
+  // 🔖 الباركود مقفول افتراضيًا — بيتفعّل بس لمطعم محدد من لوحة المنصة (مش المطعم نفسه يقرر).
+  // بنسخة قديمة بمطعم وحيد (TENANT مش موجود)، منسيبه شغال عادي زي ما كان.
+  function barcodeEnabled(){ return !TENANT || TENANT.uses_barcode===true; }
+  function handleBarcodeEnter(){
+    if(!barcodeEnabled()) return;
+    const inp = document.getElementById('itemSearch');
+    const val = (inp?.value||'').trim();
+    if(!val) return;
+    const match = ITEMS.find(i=>i.is_available && i.barcode && String(i.barcode).trim()===val);
+    if(match){
+      addToCart(match.id);
+      if(inp){ inp.value=''; renderItems(); }
+      toast('✓ '+match.name_ar);
+    }
   }
   function findDuplicateItems(){
     const groups = {};
@@ -16831,7 +16862,34 @@ try {
     } catch(e) { console.error(e); }
   }
   async function toggleCode(id,v){ try { const r=await db.from('discount_codes').update({is_active:v}).eq('id',id); if(r.error){toast('✗ '+r.error.message);console.error(r.error);return;} toast(v?'✓ فعال':'✓ موقوف'); renderAdmin(); } catch(e) { toast('✗ '+e.message); console.error(e); } }
-  function itemForm(id){ const it=ITEMS.find(x=>x.id===id)||{}; modal(`<h3>${id?'تعديل صنف':'صنف جديد'}</h3><div class="fld"><label>اسم الصنف</label><input id="f_nm" value="${esc(it.name_ar||'')}"></div><div class="fld"><label>السعر</label><input id="f_pr" inputmode="decimal" value="${it.price??''}"></div><div class="fld"><label>التكلفة (اختياري — لحساب الأرباح)</label><input id="f_cost" inputmode="decimal" value="${it.cost??''}"></div><div class="fld"><label class="chk"><input type="checkbox" id="f_noEmpDisc" ${it.exclude_employee_discount?'checked':''}> استبعاد هاد الصنف من خصم وجبة الموظف (بيتحسب سعر كامل حتى بطلب "وجبة موظف")</label></div><div class="fld"><label>صورة الصنف (اختياري)</label><input type="file" id="f_img" accept="image/*" onchange="resizeItemImage(this)"><div id="f_imgPrev" style="margin-top:6px">${it.image_url?`<img src="${it.image_url}" style="width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"> <button type="button" class="mini del" onclick="window.__itemImg='';document.getElementById('f_imgPrev').innerHTML='(انحذفت)'">حذف</button>`:''}</div></div><div class="fld"><label>التصنيف</label><select id="f_cat"><option value="">— بدون —</option>${CATS.map(c=>`<option ${c.name_ar===it.category?'selected':''}>${esc(c.name_ar)}</option>`).join('')}</select></div><div class="fld"><label>الترتيب</label><input id="f_so" inputmode="numeric" value="${it.sort_order??0}"></div><div class="fld"><label>🧩 نوع الصنف</label><select id="f_type"><option value="simple" ${(!it.item_type||it.item_type==='simple')?'selected':''}>عادي</option><option value="composite" ${it.item_type==='composite'?'selected':''}>مركّب (وجبة عائلية بمكونات قابلة للاختيار)</option></select>
+  function printBarcodeLabel(id){
+    const it = ITEMS.find(x=>x.id===id);
+    if(!it || !it.barcode){ toast('⚠️ هاد الصنف ما إله باركود محفوظ'); return; }
+    const qty = parseInt(prompt('كم ملصق بدك تطبعي؟', '1')) || 1;
+    const html = `<html dir="rtl"><head><meta charset="UTF-8"><title>ملصق باركود</title>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></scr` + `ipt>
+      <style>
+        body{font-family:Arial,sans-serif;margin:0;padding:10px}
+        .label{width:200px;text-align:center;border:1px dashed #999;padding:8px;margin-bottom:8px;page-break-inside:avoid;display:inline-block}
+        .label .nm{font-weight:900;font-size:.85rem;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .label .pr{font-weight:900;color:#c0392b;font-size:1rem;margin-top:4px}
+      </style></head><body>
+      ${Array.from({length:qty}).map((_,i)=>`<div class="label">
+        <div class="nm">${esc2(it.name_ar)}</div>
+        <svg class="bc" id="bc${i}"></svg>
+        <div class="pr">${fmt(it.price)} ${CURRENCY}</div>
+      </div>`).join('')}
+      <script>
+        window.onload = function(){
+          ${Array.from({length:qty}).map((_,i)=>`JsBarcode("#bc${i}", "${it.barcode}", {width:1.6, height:40, fontSize:13, margin:2});`).join('\n')}
+          setTimeout(()=>window.print(), 300);
+        };
+      </scr` + `ipt>
+      </body></html>`;
+    const win = window.open('', '_blank');
+    win.document.write(html); win.document.close();
+  }
+  function itemForm(id){ const it=ITEMS.find(x=>x.id===id)||{}; modal(`<h3>${id?'تعديل صنف':'صنف جديد'}</h3><div class="fld"><label>اسم الصنف</label><input id="f_nm" value="${esc(it.name_ar||'')}"></div><div class="fld"><label>السعر</label><input id="f_pr" inputmode="decimal" value="${it.price??''}"></div><div class="fld"><label>التكلفة (اختياري — لحساب الأرباح)</label><input id="f_cost" inputmode="decimal" value="${it.cost??''}"></div>${barcodeEnabled()?`<div class="fld"><label>🔖 الباركود (اختياري — للسوبرماركت/البقالة)</label><input id="f_barcode" inputmode="numeric" dir="ltr" value="${esc(it.barcode||'')}" placeholder="امسحيه بالسكانر هون أو اكتبيه يدوي">${id&&it.barcode?`<button type="button" class="mini" onclick="printBarcodeLabel('${id}')" style="margin-top:6px">🖨️ طباعة ملصق الباركود</button>`:''}</div>`:''}<div class="fld"><label class="chk"><input type="checkbox" id="f_noEmpDisc" ${it.exclude_employee_discount?'checked':''}> استبعاد هاد الصنف من خصم وجبة الموظف (بيتحسب سعر كامل حتى بطلب "وجبة موظف")</label></div><div class="fld"><label>صورة الصنف (اختياري)</label><input type="file" id="f_img" accept="image/*" onchange="resizeItemImage(this)"><div id="f_imgPrev" style="margin-top:6px">${it.image_url?`<img src="${it.image_url}" style="width:76px;height:76px;object-fit:cover;border-radius:10px;border:1px solid var(--line)"> <button type="button" class="mini del" onclick="window.__itemImg='';document.getElementById('f_imgPrev').innerHTML='(انحذفت)'">حذف</button>`:''}</div></div><div class="fld"><label>التصنيف</label><select id="f_cat"><option value="">— بدون —</option>${CATS.map(c=>`<option ${c.name_ar===it.category?'selected':''}>${esc(c.name_ar)}</option>`).join('')}</select></div><div class="fld"><label>الترتيب</label><input id="f_so" inputmode="numeric" value="${it.sort_order??0}"></div><div class="fld"><label>🧩 نوع الصنف</label><select id="f_type"><option value="simple" ${(!it.item_type||it.item_type==='simple')?'selected':''}>عادي</option><option value="composite" ${it.item_type==='composite'?'selected':''}>مركّب (وجبة عائلية بمكونات قابلة للاختيار)</option></select>
       ${id?`<div style="margin-top:6px"><button type="button" class="mini ok" onclick="openCompositeManagerSafely('${id}','${esc(it.name_ar||'')}')">🧩 إدارة تركيبة الوجبة</button></div>`:'<div style="font-size:.78rem;color:var(--muted);margin-top:4px">احفظ الصنف الأول، وبعدين افتحه من جديد لتضيف تركيبته</div>'}</div><div class="m-act"><button class="save" onclick="saveItem('${id||''}')">حفظ</button><button class="cancel" onclick="closeModal()">إلغاء</button></div>`); }
   // 🔒 يحفظ نوع الصنف "مركّب" فورًا قبل ما يفتح شاشة التركيبة — عشان ما يصير إنه يضيف مكونات
   // بس ينسى يحفظ نموذج الصنف نفسه، فيضل الصنف "عادي" بقاعدة البيانات وما يشتغل صح بالكاشير
@@ -16867,7 +16925,7 @@ try {
     const f_so = document.getElementById('f_so');
     const f_cost = document.getElementById('f_cost');
     const f_type = document.getElementById('f_type');
-    const rec={name_ar: f_nm ? f_nm.value.trim() : '', category: f_cat ? f_cat.value||null : null, price: f_pr ? parseFloat(f_pr.value) : 0, cost: f_cost && f_cost.value ? parseFloat(f_cost.value)||0 : 0, sort_order: f_so ? parseInt(f_so.value)||0 : 0, item_type: f_type ? f_type.value : 'simple', exclude_employee_discount: document.getElementById('f_noEmpDisc')?.checked||false};
+    const rec={name_ar: f_nm ? f_nm.value.trim() : '', category: f_cat ? f_cat.value||null : null, price: f_pr ? parseFloat(f_pr.value) : 0, cost: f_cost && f_cost.value ? parseFloat(f_cost.value)||0 : 0, sort_order: f_so ? parseInt(f_so.value)||0 : 0, item_type: f_type ? f_type.value : 'simple', exclude_employee_discount: document.getElementById('f_noEmpDisc')?.checked||false, barcode: document.getElementById('f_barcode')?.value.trim()||null};
     if(window.__itemImg !== undefined){ rec.image_url = window.__itemImg || null; }
     window.__itemImg = undefined;
     if(!rec.name_ar||!(rec.price>0)){ toast('⚠️ الاسم وسعر صحيح'); return; }
@@ -17692,7 +17750,7 @@ try {
       </div>`);
     await loadChatMessages();
     if(CHAT_POLL_TIMER) clearInterval(CHAT_POLL_TIMER);
-    CHAT_POLL_TIMER = setInterval(loadChatMessages, 4000);
+    CHAT_POLL_TIMER = setInterval(loadChatMessages, 10000);
   }
   async function deleteMyConversation(staffId, staffName){
     if(!confirm(`⚠️ حذف كل المحادثة مع "${staffName}" نهائيًا؟\nهاد الإجراء ما ينرجع.`)) return;
