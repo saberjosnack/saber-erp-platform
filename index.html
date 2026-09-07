@@ -35,6 +35,7 @@
 
     /* ====== الدخول ====== */
     #loginScreen{position:fixed;inset:0;background:linear-gradient(160deg,var(--maroon),#2b0808);display:flex;align-items:center;justify-content:center;z-index:100}
+    #empPortalLogin{position:fixed;inset:0;background:linear-gradient(160deg,var(--maroon),#2b0808);display:flex;align-items:center;justify-content:center;z-index:100}
     .login-card{background:var(--cream);border-radius:24px;padding:34px 30px;width:min(92vw,380px);text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
     .login-logo{font-size:2.4rem;font-weight:900;color:var(--red)}
     .login-logo span{color:var(--maroon)}
@@ -369,13 +370,13 @@
       <button class="pk-alt" onclick="window.pinBack()">⌫</button>
     </div>
     <div style="text-align:center;margin-top:14px">
-      <button type="button" onclick="document.getElementById('loginScreen').classList.add('hidden');document.getElementById('empPortalLogin').classList.remove('hidden')" style="background:none;border:none;color:var(--muted);font-weight:800;font-size:.82rem;text-decoration:underline;cursor:pointer">👷 رجوع لبوابة الموظف</button>
+      <button type="button" onclick="document.getElementById('loginScreen').classList.add('hidden');document.getElementById('empPortalLogin').classList.remove('hidden')" style="background:none;border:none;color:var(--muted);font-weight:800;font-size:.82rem;text-decoration:underline;cursor:pointer">👷 بوابة الموظف (تسجيل حضور)</button>
     </div>
   </div>
 </div>
 
 <!-- ============ بوابة الموظف الذاتية (حضور + سلف) ============ -->
-<div id="empPortalLogin">
+<div id="empPortalLogin" class="hidden">
   <div class="login-card">
     <div class="login-logo">👷</div>
     <div class="login-sub">بوابة الموظف — تسجيل حضور</div>
@@ -829,7 +830,7 @@
       const code = 'trial' + Math.random().toString(36).slice(2, 8);
       const expiry = new Date(); expiry.setDate(expiry.getDate() + 7);
       const { data: tenant, error: tErr } = await db.from('tenants').insert({
-        name, code, business_type: bizType, billing_type: 'trial',
+        name, code, business_type: bizType, billing_type: 'trial', signup_phone: phone,
         order_credits_balance: 20, subscription_expiry: expiry.toISOString().split('T')[0],
         is_active: true, enabled_features: null, // null = كل الشاشات مفتوحة
       }).select().single();
@@ -1029,7 +1030,8 @@
           const statusLabel = t.is_active===false ? '⛔ موقّف' : (expired ? '⏰ منتهي' : '✅ فعّال');
           const isFreshSignup = t.created_at && (Date.now() - new Date(t.created_at).getTime()) < 2*86400000;
           return `<div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.09);border-top:5px solid ${statusColor};position:relative">
-            ${isFreshSignup?'<div style="position:absolute;top:-2px;left:14px;background:#e8890c;color:#fff;font-weight:900;font-size:.72rem;padding:3px 10px;border-radius:0 0 8px 8px">🆕 تسجيل جديد</div>':''}
+            ${isFreshSignup?`<div style="position:absolute;top:-2px;left:14px;background:#e8890c;color:#fff;font-weight:900;font-size:.72rem;padding:3px 10px;border-radius:0 0 8px 8px">🆕 تسجيل جديد</div>`:''}
+            ${t.signup_phone?`<a href="tel:${t.signup_phone}" style="display:block;background:#2e7d32;color:#fff;text-align:center;font-weight:900;padding:8px;text-decoration:none;font-size:.9rem">📞 اتصلي فيه: ${t.signup_phone}</a>`:''}
             <div style="padding:18px 18px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2ede3">
               ${t.logo_url?`<img src="${esc2(t.logo_url)}" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:1.5px solid #eee">`:`<div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4a1010,#7a2020);display:flex;align-items:center;justify-content:center;color:#D9A93C;font-weight:900;font-size:1.3rem">${(t.name||'؟').charAt(0)}</div>`}
               <div style="flex:1;min-width:0">
@@ -2538,7 +2540,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-06-29';
+  const APP_VERSION = '2026-09-06-30';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
@@ -2896,6 +2898,10 @@
     setTimeout(()=>{
       document.getElementById('loadingOverlay')?.remove();
       if(window.__PA_IMPERSONATING && ME){ enterApp(); }
+      // 🖥️ شاشة الدخول الرئيسية (كاشير/إدارة) هلق هي الافتراضية يلي تفتح، مش بوابة الموظف —
+      // وبما إنها محتاجة فرع الجهاز محدّد أول، منستدعي نفس بوابة اختيار الفرع يلي كانت تنستدعى
+      // بس لما حدا يضغط "دخول كاشير/إدارة" يدويًا. بوابة الموظف صارت رابط ثانوي تحت.
+      else if(!IS_PLATFORM_ADMIN_MODE && !window.__tenantBlocked){ initDeviceBranchGate(); }
     }, 400);
   });
 
