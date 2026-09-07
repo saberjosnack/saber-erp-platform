@@ -781,11 +781,84 @@
       setTimeout(()=>clearInterval(soundInterval), 60000); // نوقف الصوت لحاله بعد دقيقة عشان ما يضل للأبد لو تركت الصفحة مفتوحة
     }catch(e){ /* بعض المتصفحات بتمنع الصوت التلقائي بدون تفاعل — عادي، الشاشة المرئية كافية */ }
   }
+  // ================= 🚀 صفحة تسجيل تجريبي ذاتي (لما ما في كود مطعم بالرابط) =================
+  // أي حدا يفتح الرابط الأساسي بدون ?r=code (زبون جديد من إعلان مثلًا) بيشوف هاي الصفحة بدل
+  // رسالة خطأ — بيعبّي بياناته وبينفتحله حساب تجريبي فورًا (٢٠ طلب، كل الشاشات مفتوحة، أسبوع كامل).
+  function showSignupLanding(){
+    const ov = document.getElementById('loadingOverlay');
+    if(!ov) return;
+    ov.style.background = 'linear-gradient(160deg,#FFF8ED 0%,#FBEFD9 100%)';
+    ov.innerHTML = `<div style="text-align:center;padding:24px;max-width:420px;width:100%;font-family:inherit">
+      <div style="font-size:2.6rem;font-weight:900;margin-bottom:6px">
+        <span style="color:var(--maroon,#5E1420)">Saber</span><span style="color:#D9A93C">ERP</span>
+      </div>
+      <div style="font-weight:900;font-size:1.1rem;color:var(--maroon,#5E1420);margin-bottom:6px">جرّبي النظام مجانًا الآن</div>
+      <div style="color:#8B7A6B;font-weight:700;font-size:.85rem;line-height:1.6;margin-bottom:20px">حساب تجريبي فوري — ٢٠ طلب مجانًا، كل الشاشات مفتوحة، بدون أي التزام</div>
+      <div style="text-align:right">
+        <label style="font-weight:800;font-size:.85rem;display:block;margin-bottom:4px">اسم المطعم / النشاط *</label>
+        <input id="su_name" placeholder="مثال: مطعم الذوق الرفيع" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:10px;margin-bottom:14px;font-size:1rem">
+        <label style="font-weight:800;font-size:.85rem;display:block;margin-bottom:4px">رقم هاتفك *</label>
+        <input id="su_phone" inputmode="tel" dir="ltr" placeholder="07XXXXXXXX" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:10px;margin-bottom:14px;font-size:1rem">
+        <label style="font-weight:800;font-size:.85rem;display:block;margin-bottom:4px">نوع النشاط</label>
+        <select id="su_type" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:10px;margin-bottom:18px;font-size:1rem">
+          <option value="restaurant">🍔 مطعم</option>
+          <option value="shop">🏪 دكان / سناك</option>
+          <option value="grocery">🛒 بقالة / سوبرماركت</option>
+          <option value="company">🏢 شركة / خدمات</option>
+        </select>
+      </div>
+      <div id="su_err" style="color:var(--red,#c0392b);font-weight:800;font-size:.85rem;min-height:20px;margin-bottom:8px"></div>
+      <button onclick="submitSignup()" id="su_btn" style="width:100%;background:var(--maroon,#5E1420);color:#fff;font-weight:900;font-size:1.05rem;padding:15px;border-radius:12px">🚀 سجّلي الآن مجانًا</button>
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid #e8dcc8">
+        <div style="color:#8B7A6B;font-weight:700;font-size:.8rem">عندك حساب أصلًا؟ استخدمي الرابط الخاص يلي وصلك من Saber ERP</div>
+      </div>
+    </div>`;
+  }
+  async function submitSignup(){
+    const name = document.getElementById('su_name')?.value.trim();
+    const phone = document.getElementById('su_phone')?.value.trim();
+    const bizType = document.getElementById('su_type')?.value || 'restaurant';
+    const errEl = document.getElementById('su_err');
+    const btn = document.getElementById('su_btn');
+    if(errEl) errEl.textContent = '';
+    if(!name){ if(errEl) errEl.textContent = '⚠️ اكتبي اسم المطعم/النشاط'; return; }
+    if(!phone || phone.replace(/\D/g,'').length < 8){ if(errEl) errEl.textContent = '⚠️ اكتبي رقم هاتف صحيح'; return; }
+    if(btn){ btn.disabled = true; btn.textContent = '⏳ جاري إنشاء حسابك...'; }
+    try{
+      // كود عشوائي فريد (مش مبني على الاسم — عشان نتجنب مشاكل الأحرف العربية بالرابط)
+      const code = 'trial' + Math.random().toString(36).slice(2, 8);
+      const expiry = new Date(); expiry.setDate(expiry.getDate() + 7);
+      const { data: tenant, error: tErr } = await db.from('tenants').insert({
+        name, code, business_type: bizType, billing_type: 'trial',
+        order_credits_balance: 20, subscription_expiry: expiry.toISOString().split('T')[0],
+        is_active: true, enabled_features: null, // null = كل الشاشات مفتوحة
+      }).select().single();
+      if(tErr){ if(errEl) errEl.textContent = '✗ '+tErr.message; if(btn){ btn.disabled=false; btn.textContent='🚀 سجّلي الآن مجانًا'; } return; }
+      // 📞 نسجّل رقم الهاتف كـ"دفعة" أول بمبلغ صفر — هيك بيضل موثّق ومربوط بالمطعم من نفس نظام
+      // المدفوعات الموجود، وبيظهر لصاحبة المنصة بسجل الدفعات مباشرة بدون شاشة إضافية جديدة.
+      try{ await db.from('platform_credit_topups').insert({ tenant_id: tenant.id, tenant_name: name, orders_added: 20, amount_jod: null, note: 'تسجيل تجريبي ذاتي — هاتف: '+phone }); }catch(e){}
+      // 👤 حساب مالك تلقائي — يوزر ورقم سري عشوائيين، عشان يدخل فورًا بدون خطوة إضافية
+      const username = 'owner' + Math.floor(1000+Math.random()*9000);
+      const pin = String(Math.floor(1000+Math.random()*9000));
+      await db.from('staff').insert({ username, pin, full_name: name+' — مالك', role: 'admin', is_active: true, tenant_id: tenant.id });
+      const link = location.origin + location.pathname + '?r=' + code;
+      const ov = document.getElementById('loadingOverlay');
+      if(ov) ov.innerHTML = `<div style="text-align:center;padding:24px;max-width:420px;font-family:inherit">
+        <div style="font-size:3.4rem;margin-bottom:10px">🎉</div>
+        <div style="font-weight:900;font-size:1.2rem;color:var(--maroon,#5E1420);margin-bottom:16px">تم إنشاء حسابك التجريبي!</div>
+        <div style="background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;text-align:right">
+          <div style="font-weight:800;margin-bottom:8px">👤 اسم المستخدم: <b dir="ltr">${username}</b></div>
+          <div style="font-weight:800">🔑 الرقم السري: <b dir="ltr">${pin}</b></div>
+        </div>
+        <a href="${link}" style="display:block;background:var(--ok,#2e7d32);color:#fff;font-weight:900;font-size:1.05rem;padding:15px;border-radius:12px;text-decoration:none">🚀 ادخلي على حسابك الآن</a>
+      </div>`;
+    }catch(e){ if(errEl) errEl.textContent = '✗ '+e.message; if(btn){ btn.disabled=false; btn.textContent='🚀 سجّلي الآن مجانًا'; } }
+  }
   async function resolveTenantGate(){
     const code = (new URLSearchParams(location.search).get('r')||'').trim().toLowerCase();
     if(!code){
-      tenantBlockScreen('⚠️', 'رابط غير صحيح', 'الرابط ناقص كود المطعم. تأكدي إنك فاتحة الرابط الصحيح يلي انبعتلك من Saber ERP.');
-      throw new Error('tenant code missing');
+      showSignupLanding();
+      throw new Error('no tenant code — showing signup landing instead');
     }
     let data, error;
     try{ ({ data, error } = await db.from('tenants').select('*').eq('code', code).maybeSingle()); }
@@ -954,7 +1027,9 @@
           const billing = BILLING_LABELS[t.billing_type] || BILLING_LABELS.per_order;
           const statusColor = t.is_active===false ? '#c0392b' : (expired ? '#e8890c' : '#2e7d32');
           const statusLabel = t.is_active===false ? '⛔ موقّف' : (expired ? '⏰ منتهي' : '✅ فعّال');
-          return `<div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.09);border-top:5px solid ${statusColor}">
+          const isFreshSignup = t.created_at && (Date.now() - new Date(t.created_at).getTime()) < 2*86400000;
+          return `<div style="background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 6px 22px rgba(0,0,0,.09);border-top:5px solid ${statusColor};position:relative">
+            ${isFreshSignup?'<div style="position:absolute;top:-2px;left:14px;background:#e8890c;color:#fff;font-weight:900;font-size:.72rem;padding:3px 10px;border-radius:0 0 8px 8px">🆕 تسجيل جديد</div>':''}
             <div style="padding:18px 18px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #f2ede3">
               ${t.logo_url?`<img src="${esc2(t.logo_url)}" style="width:52px;height:52px;border-radius:12px;object-fit:cover;border:1.5px solid #eee">`:`<div style="width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#4a1010,#7a2020);display:flex;align-items:center;justify-content:center;color:#D9A93C;font-weight:900;font-size:1.3rem">${(t.name||'؟').charAt(0)}</div>`}
               <div style="flex:1;min-width:0">
@@ -2463,7 +2538,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-04-28';
+  const APP_VERSION = '2026-09-06-29';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
