@@ -291,6 +291,23 @@
     .shift-active{background:var(--ok);color:#fff;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.75rem}
     .shift-closed{background:var(--muted);color:#fff;padding:4px 12px;border-radius:999px;font-weight:700;font-size:.75rem}
   </style>
+  <!-- Meta Pixel Code -->
+  <script>
+  !function(f,b,e,v,n,t,s)
+  {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+  n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];
+  s.parentNode.insertBefore(t,s)}(window, document,'script',
+  'https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', '1811424060212778');
+  fbq('track', 'PageView');
+  </script>
+  <noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=1811424060212778&ev=PageView&noscript=1"
+  /></noscript>
+  <!-- End Meta Pixel Code -->
 </head>
 <body>
 
@@ -842,6 +859,9 @@
       const username = 'owner' + Math.floor(1000+Math.random()*9000);
       const pin = String(Math.floor(1000+Math.random()*9000));
       await db.from('staff').insert({ username, pin, full_name: name+' — مالك', role: 'admin', is_active: true, tenant_id: tenant.id });
+      // 📊 حدث تحويل حقيقي لفيسبوك — بس لما يكمل التسجيل فعليًا (مش مجرد فتح الصفحة)، عشان تقدري
+      // تعرفي بالضبط كم حدا سجّل من كل إعلان، وتخلّي فيسبوك يحسّن الحملة على أساس هالنتيجة الحقيقية.
+      try{ if(typeof fbq!=='undefined') fbq('track', 'CompleteRegistration', { content_name: name }); }catch(e){}
       const link = location.origin + location.pathname + '?r=' + code;
       const ov = document.getElementById('loadingOverlay');
       if(ov) ov.innerHTML = `<div style="text-align:center;padding:24px;max-width:420px;font-family:inherit">
@@ -2540,7 +2560,7 @@
     box.appendChild(line);
   }
 
-  const APP_VERSION = '2026-09-06-30';
+  const APP_VERSION = '2026-09-06-31';
   // 🔄 فحص تلقائي للنسخة — يحل مشكلة "الصفحة ما بتاخد آخر تحديث" نهائيًا: كل شوي منقارن نسختنا
   // المحمّلة حاليًا مع ملف version.txt الحقيقي على السيرفر (بدون كاش أبدًا). لو مختلفة، معناته
   // في نسخة أحدث انرفعت، فمنعمل تحديث كامل للصفحة تلقائيًا بدون ما ننتظر حدا يسكر التبويب يدويًا.
